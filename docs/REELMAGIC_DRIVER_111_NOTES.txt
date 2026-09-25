@@ -1,0 +1,76 @@
+ReelMagic Release 1.11 compatibility notes
+===========================================
+
+Source generation
+-----------------
+The original ReelMagic driver package examined during compatibility research
+identifies itself as ReelMagic Release 1.11, dated 1994-04-05. Its README states
+that Return to Zork requires Release 1.11 or later and that the RTZ CD includes
+Release 1.11.
+
+No driver binary is included in this repository.
+
+Identification hashes
+---------------------
+FMPDRV.EXE
+  size   61,712 bytes
+  MD5    11b1c0f566d82f15363229c17501e1f7
+  SHA256 f5d94a15b711275557a6a243342b6b7b5a76af2c5dd831c679fe775f0d7351bd
+
+RMDEV.SYS
+  size   12,994 bytes
+  MD5    fed75f50835ffa4c79f73a88bf374553
+  SHA256 249e2d1117a43b29732827c8aaecf808a035f0792fc67b1d704a0c33360a32af
+  identification string: ReelMagic Device Driver - Version 1.11
+
+TESTFMP.EXE
+  size   79,696 bytes
+  MD5    782919da4f23ce5699969955623b976f
+  SHA256 d1b5379b3736a37b85a6daeaf0ec22669a3e782e8388eb4a64e68afefd252e16
+
+SPLAYER.EXE
+  size   7,742 bytes
+  MD5    161d896a5bbe27e78763ceab552a686a
+  SHA256 5d6735856b15c947ab33524bf38240177bf9786f94c143de5a2bad8e9f67ebe2
+
+FMPDRV API observations
+-----------------------
+The DOS load module has a 0x200-byte MZ header. Its resident interrupt entry
+contains the literal marker "FMPDriver". The command dispatcher contains 16
+entries for commands 01h through 10h.
+
+Dispatch targets observed in this Release 1.11 binary:
+
+01 1811   02 182F   03 18A9   04 18BE
+05 18EA   06 196F   07 1934   08 18FA
+09 186F   0A 183F   0B 194B   0C 1986
+0D 1991   0E 199A   0F 18CE   10 19A6
+
+The parameter tables explicitly contain:
+
+- 0208h user data
+- 040Dh VGA alpha palette index
+- 040Eh surface Z-order
+
+for both SET and GET paths.
+
+The status-query dispatcher maps 0204h, play state, to its own handler. This
+independently supports the conclusion that MADERM's state wrapper is based on
+the real driver play-state query rather than a game-local timer.
+
+Combined MADERM + FMPDRV observations
+-------------------------------------
+The matching Return to Zork MADERM wrapper performs these operations:
+
+- initializes 040Dh to parameter 0, making VGA palette index 0 the transparent/alpha index;
+- sets ReelMagic magic key 0210h to 0x40044041;
+- maps raw driver play state to MADE stopped/playing/paused values;
+- resumes by querying 0208h and issuing Play with 0301h or 0304h;
+- sets per-movie Z-order to 2, MPEG in front, or 4, MPEG behind.
+
+Pause edge case
+---------------
+If an MPEG decoder is created while ScummVM is already globally paused, the
+new decoder must itself receive `pauseVideo(true)` immediately. Freezing only
+the MADE frame clock is insufficient because MPEG audio can otherwise advance
+under the paused UI and resume out of sync.

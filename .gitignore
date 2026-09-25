@@ -1,0 +1,27 @@
+WORK/
+BUILD_OUTPUT/
+*.log
+*.tmp
+*.user
+.vs/
+__pycache__/
+*.pyc
+
+# Never commit game/media/driver data
+*.mpg
+*.mpeg
+*.red
+*.prj
+*.dat
+*.exe
+*.sys
+*.iso
+*.cue
+*.bin
+*.img
+*.zip
+*.7z
+*.rar
+
+# The repository intentionally tracks only scripts/source notes.
+!BUILD.cmd
