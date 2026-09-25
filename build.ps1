@@ -230,6 +230,7 @@ function Ensure-Vcpkg {
 Start-Transcript -Path $logFile -Force | Out-Null
 try {
     Write-Host "RTZ ReelMagic ScummVM - Return to Zork ReelMagic for ScummVM" -ForegroundColor Green
+    Write-Host "Builder    : WIN-ALL-ENGINES-v2" -ForegroundColor DarkCyan
     Write-Host "Pacchetto : $PackageRoot"
     Write-Host "Lavoro    : $WorkRoot"
     Write-Host "Output    : $OutputDir"
@@ -453,11 +454,10 @@ try {
     if (-not (Test-Path $installed -PathType Container)) {
         throw "Dipendenze vcpkg x64-windows non trovate: $installed"
     }
-    foreach ($dllDir in @((Join-Path $installed "bin"), (Join-Path $installed "debug\bin"))) {
-        if (Test-Path $dllDir) {
-            Get-ChildItem $dllDir -Filter "*.dll" -File | ForEach-Object {
-                Copy-Item $_.FullName $OutputDir -Force
-            }
+    $dllDir = Join-Path $installed "bin"
+    if (Test-Path $dllDir) {
+        Get-ChildItem $dllDir -Filter "*.dll" -File | ForEach-Object {
+            Copy-Item $_.FullName $OutputDir -Force
         }
     }
 
