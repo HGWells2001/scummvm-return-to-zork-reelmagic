@@ -24,6 +24,20 @@ $WorkRoot = [System.IO.Path]::GetFullPath($WorkRoot)
 $OutputDir = [System.IO.Path]::GetFullPath($OutputDir)
 New-Item -ItemType Directory -Force -Path $WorkRoot | Out-Null
 
+# A complete all-engine build plus vcpkg needs several GB. Fail early with a
+# useful message instead of letting Git/MSBuild produce hundreds of misleading
+# "unable to write file" errors when the drive is full.
+$workDriveRoot = [System.IO.Path]::GetPathRoot($WorkRoot)
+$workDrive = New-Object System.IO.DriveInfo($workDriveRoot)
+$freeGiB = [math]::Round($workDrive.AvailableFreeSpace / 1GB, 1)
+$minimumFreeGiB = 12
+if ($freeGiB -lt $minimumFreeGiB) {
+    throw "Spazio insufficiente su $workDriveRoot: liberi $freeGiB GB. Per la build completa ScummVM servono almeno $minimumFreeGiB GB liberi."
+}
+if ($freeGiB -lt 20) {
+    Write-Host "ATTENZIONE: spazio libero su $workDriveRoot: $freeGiB GB. La build completa puo' usare parecchi GB." -ForegroundColor Yellow
+}
+
 $logDir = Join-Path $WorkRoot "logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -257,13 +271,12 @@ try {
     $sourceDir = Join-Path $WorkRoot "scummvm-rtz-reelmagic"
     $marker = Join-Path $sourceDir "RTZ_REELMAGIC_BUILD.txt"
 
-    # Older releases of this builder created a sparse MADE-only source tree.
-    # Detect it automatically and rebuild it once so users do not need to
-    # manually delete WORK after upgrading to the complete ScummVM builder.
+    # Older releases created either a MADE-only tree or a full cross-platform
+    # checkout. Rebuild once into the lean Windows/all-engines layout.
     if (Test-Path $marker -PathType Leaf) {
         $markerText = Get-Content $marker -Raw
-        if (-not $markerText.Contains("source_tree=full")) {
-            Write-Host "Vecchio sorgente MADE-only rilevato: ricreo il tree ScummVM completo." -ForegroundColor Yellow
+        if (-not $markerText.Contains("source_tree=full-windows")) {
+            Write-Host "Vecchio layout sorgenti rilevato: ricreo il tree Windows con tutti gli engine." -ForegroundColor Yellow
             Remove-Item -Recurse -Force $sourceDir
         }
     }
@@ -291,9 +304,9 @@ try {
         if ($RtzrmDat) { $bootstrapArgs += @("-RtzrmDat",$RtzrmDat) }
         if ($ReelMagicDrivers) { $bootstrapArgs += @("-ReelMagicDrivers",$ReelMagicDrivers) }
         if ($SkipValidation -or -not $python) { $bootstrapArgs += "-SkipPythonValidation" }
-        Invoke-Native -Exe "powershell.exe" -Arguments $bootstrapArgs -What "Preparazione sorgenti ScummVM completi + ReelMagic"
+        Invoke-Native -Exe "powershell.exe" -Arguments $bootstrapArgs -What "Preparazione sorgenti Windows, tutti gli engine + ReelMagic"
     } else {
-        Write-Host "Sorgenti ScummVM completi + ReelMagic gia' pronti: riuso $sourceDir" -ForegroundColor Green
+        Write-Host "Sorgenti Windows con tutti gli engine + ReelMagic gia' pronti: riuso $sourceDir" -ForegroundColor Green
     }
 
     $vcpkgRoot = $null
@@ -553,7 +566,7 @@ Local ReelMagic compatibility HEAD: $head
 Visual Studio: $($vs.Version)
 Architecture: x64
 Engine set: ALL ScummVM engines`nGUI: native ScummVM themes/icons + RTZRM metadata`nRenderer: SDL software forced on Windows
-Source tree: full ScummVM checkout
+Source tree: Windows-focused checkout, all ScummVM engines
 Dependencies: official ScummVM vcpkg manifest + ReelMagic requirements
 Source tree: $sourceDir
 Build tree: $buildDir
