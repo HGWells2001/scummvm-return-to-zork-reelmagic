@@ -11,7 +11,11 @@ $ErrorActionPreference = "Stop"
 $PackageRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 if (-not $WorkRoot) {
-    $WorkRoot = Join-Path $PackageRoot "WORK"
+    # Keep the build tree short. Full ScummVM contains very deep paths and a
+    # package extracted under Downloads\Compressed can otherwise exceed legacy
+    # Windows path limits in Git, MSBuild or third-party build tools.
+    $baseWork = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { $env:TEMP }
+    $WorkRoot = Join-Path $baseWork "RTZRM-ScummVM-Build"
 }
 if (-not $OutputDir) {
     $OutputDir = Join-Path $PackageRoot "BUILD_OUTPUT\ScummVM-RTZ-ReelMagic"
@@ -123,8 +127,10 @@ function Ensure-Vcpkg {
 
     if (-not (Test-Path (Join-Path $local ".git"))) {
         Invoke-Native -Exe "git.exe" -Arguments @("-C",$local,"init") -What "Inizializzazione vcpkg"
+        Invoke-Native -Exe "git.exe" -Arguments @("-C",$local,"config","core.longpaths","true") -What "Abilitazione percorsi lunghi vcpkg"
         Invoke-Native -Exe "git.exe" -Arguments @("-C",$local,"remote","add","origin",$originUrl) -What "Configurazione remote vcpkg"
     } else {
+        Invoke-Native -Exe "git.exe" -Arguments @("-C",$local,"config","core.longpaths","true") -What "Abilitazione percorsi lunghi vcpkg"
         # The WORK\vcpkg directory may come from an earlier RTZ package.
         # Force the remote back to the expected upstream before fetching.
         Invoke-Native -Exe "git.exe" -Arguments @("-C",$local,"remote","set-url","origin",$originUrl) -What "Verifica remote vcpkg"
@@ -285,9 +291,9 @@ try {
         if ($RtzrmDat) { $bootstrapArgs += @("-RtzrmDat",$RtzrmDat) }
         if ($ReelMagicDrivers) { $bootstrapArgs += @("-ReelMagicDrivers",$ReelMagicDrivers) }
         if ($SkipValidation -or -not $python) { $bootstrapArgs += "-SkipPythonValidation" }
-        Invoke-Native -Exe "powershell.exe" -Arguments $bootstrapArgs -What "Preparazione sorgenti ReelMagic sparse"
+        Invoke-Native -Exe "powershell.exe" -Arguments $bootstrapArgs -What "Preparazione sorgenti ScummVM completi + ReelMagic"
     } else {
-        Write-Host "Sorgenti ReelMagic sparse gia' pronti: riuso $sourceDir" -ForegroundColor Green
+        Write-Host "Sorgenti ScummVM completi + ReelMagic gia' pronti: riuso $sourceDir" -ForegroundColor Green
     }
 
     $vcpkgRoot = $null
