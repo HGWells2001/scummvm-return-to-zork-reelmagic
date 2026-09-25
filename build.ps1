@@ -115,7 +115,7 @@ function Ensure-Vcpkg {
 
     # One deterministic vcpkg tree owned by this package. Do not mix a Visual
     # Studio bundled vcpkg, PATH vcpkg, and a local checkout in the same build.
-    $vcpkgCommit = "10541e317a660f4165ba4ac2851ab54a8d4577b1"
+    $vcpkgCommit = "ef7dbf94b9198bc58f45951adcf1f041fcbc5ea0"
     $local = Join-Path $WorkRoot "vcpkg"
     $originUrl = "https://github.com/microsoft/vcpkg.git"
 
@@ -333,24 +333,19 @@ try {
     if (Test-Path $buildDir) { Remove-Item -Recurse -Force $buildDir }
     New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
 
-    # Minimal dependency manifest: only what MADE/ReelMagic actually needs.
-    $manifest = @'
-{
-  "name": "scummvm-rtz-reelmagic",
-  "version-string": "0.1.0",
-  "dependencies": [
-    "libmad",
-    "libmpeg2",
-    "libpng",
-    "sdl2",
-    "zlib"
-  ]
-}
-'@
+    # Use ScummVM's own dependency manifest for a complete Windows build.
+    # This is the same manifest used by the official ScummVM Windows CI.
+    $sourceManifest = Join-Path $sourceDir "vcpkg.json"
+    if (-not (Test-Path $sourceManifest -PathType Leaf)) {
+        throw "Manifest vcpkg ufficiale ScummVM non trovato: $sourceManifest"
+    }
     $manifestPath = Join-Path $buildDir "vcpkg.json"
-    Write-Utf8NoBom $manifestPath $manifest
-    if (-not (Test-Path $manifestPath -PathType Leaf)) {
-        throw "Manifest vcpkg non creato: $manifestPath"
+    Copy-Item $sourceManifest $manifestPath -Force
+
+    $overlayPorts = Join-Path $sourceDir ".github\vcpkg-ports"
+    if (Test-Path $overlayPorts -PathType Container) {
+        $env:VCPKG_OVERLAY_PORTS = $overlayPorts
+        Write-Host "vcpkg overlay : $overlayPorts"
     }
 
     # create_project expects a source path RELATIVE to the project output
@@ -361,19 +356,14 @@ try {
     $cpArgs = @(
         $createProjectSource,
         "--msvc","--msvc-version",$vs.Major.ToString(),"--vcpkg",
-        "--disable-all-engines","--enable-engine=made","--sdl2",
-        "--enable-zlib","--enable-mad","--enable-mpeg2","--enable-16bit",
-        "--enable-builtin-resources","--enable-detection-static",
-        "--disable-fribidi","--disable-ogg","--disable-vorbis","--disable-flac",
-        "--enable-png","--disable-theoradec","--disable-freetype2","--disable-jpeg",
-        "--disable-fluidsynth","--disable-libcurl","--disable-sdlnet",
-        "--disable-opengl","--disable-3d","--disable-mt32emu","--disable-nasm",
-        "--disable-taskbar","--disable-tts"
+        "--enable-all-engines",
+        "--enable-discord","--enable-faad","--enable-gif","--enable-mikmod",
+        "--enable-mpeg2","--enable-vpx"
     )
 
     Push-Location $buildDir
     try {
-        Invoke-Native -Exe $createProject -Arguments $cpArgs -What "Generazione progetto Visual Studio MADE-only"
+        Invoke-Native -Exe $createProject -Arguments $cpArgs -What "Generazione progetto Visual Studio ScummVM completo"
 
         # Sanity-check generated MSVC paths before spending time in MSBuild.
         # An absolute source argument would produce invalid fragments such as:
@@ -393,8 +383,9 @@ try {
             "install",
             "--triplet","x64-windows",
             "--x-manifest-root=$buildDir",
+            "--x-install-root=$buildDir\vcpkg_installed",
             "--disable-metrics"
-        ) -What "Installazione dipendenze ReelMagic"
+        ) -What "Installazione dipendenze complete ScummVM"
     } finally {
         Pop-Location
     }
@@ -416,7 +407,7 @@ try {
         "/p:VcpkgRoot=$vcpkgRoot\",
         "/p:VcpkgManifestRoot=$buildDir\",
         "/v:minimal"
-    ) -What "Compilazione ScummVM MADE/ReelMagic Release x64"
+    ) -What "Compilazione ScummVM completo + ReelMagic Release x64"
 
     $exe = Get-ChildItem $buildDir -Filter "scummvm.exe" -File -Recurse |
         Sort-Object LastWriteTime -Descending |
@@ -458,6 +449,18 @@ try {
         }
     }
 
+    # Runtime data used by many ScummVM engines. A full build without these
+    # files would compile successfully but some games would later complain
+    # about missing engine data.
+    $engineDataDir = Join-Path $sourceDir "dists\engine-data"
+    if (Test-Path $engineDataDir -PathType Container) {
+        Get-ChildItem $engineDataDir -Filter "*.dat" -File | ForEach-Object {
+            Copy-Item $_.FullName $OutputDir -Force
+        }
+    } else {
+        throw "Cartella engine-data ScummVM mancante: $engineDataDir"
+    }
+
     # Add metadata only for made:rtzrm. The actual artwork is the official
     # made-rtz.png already present in gui-icons.dat and selected by grid.h.
     $rtzMetaRoot = Join-Path $WorkRoot "rtzrm-gui-metadata"
@@ -484,17 +487,22 @@ try {
     }
 
     $nativeReadme = @'
-RETURN TO ZORK (REELMAGIC) - SCUMMVM NATIVE BUILD
-==================================================
+SCUMMVM COMPLETO + RETURN TO ZORK REELMAGIC
+============================================
 
 Avvia direttamente:
   scummvm.exe
 
-Poi:
+Questa e' una build completa di ScummVM con tutti gli engine abilitati,
+piu' il supporto sperimentale a Return to Zork ReelMagic.
+
+Per qualunque gioco supportato:
   1. Add Game...
-  2. scegli la cartella di Return to Zork ReelMagic
-  3. ScummVM rilevera' "Return to Zork (ReelMagic)"
-  4. usa Start normalmente dal launcher
+  2. scegli la cartella del gioco
+  3. ScummVM rilevera' automaticamente l'engine corretto
+
+Per Return to Zork ReelMagic il target resta separato:
+  made:rtzrm
 
 Aspetto launcher:
   - tema ScummVM Remastered ufficiale
@@ -518,7 +526,7 @@ Durante le cutscene ReelMagic non-looping:
 
     $head = (& git -C $sourceDir rev-parse HEAD).Trim()
     $buildInfo = @"
-RTZ ReelMagic ScummVM - Return to Zork ReelMagic reproducible build
+ScummVM Complete + Return to Zork ReelMagic reproducible build
 Built: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 ScummVM compatibility base: d16c0c72818d46526406921c25f47432939eb4d7
 PR #7848 commit: 79d7ee1af3847c28eeee5d90d6cda0252cf5fcb2
@@ -526,22 +534,31 @@ PR #7849 commit: 5c82a3dc97f4768b319fca2afddf436bfae4aca7
 Local ReelMagic compatibility HEAD: $head
 Visual Studio: $($vs.Version)
 Architecture: x64
-Engine set: MADE only`nGUI: native ScummVM themes/icons + RTZRM metadata`nRenderer: SDL software forced on Windows
-Source download: partial clone blob:none + sparse checkout
-Required ReelMagic codecs: libmpeg2 + libmad + libpng
+Engine set: ALL ScummVM engines`nGUI: native ScummVM themes/icons + RTZRM metadata`nRenderer: SDL software forced on Windows
+Source tree: full ScummVM checkout
+Dependencies: official ScummVM vcpkg manifest + ReelMagic requirements
 Source tree: $sourceDir
 Build tree: $buildDir
 "@
     Write-Utf8NoBom (Join-Path $OutputDir "BUILD_INFO.txt") $buildInfo
 
-    # Smoke-test the portable output.
+    # Smoke-test the portable output and verify this is really a full build.
     $outExe = Join-Path $OutputDir "scummvm.exe"
     Invoke-Native -Exe $outExe -Arguments @("--version") -What "Smoke test scummvm.exe"
     $engines = & $outExe --list-engines 2>&1
     if ($LASTEXITCODE -ne 0) { throw "Impossibile leggere la lista engine." }
-    if (($engines -join "`n") -notmatch "(?im)\bmade\b") {
-        throw "La build non espone l'engine MADE."
+    $engineText = ($engines -join "`n")
+    foreach ($requiredEngine in @("made","scumm","sci","ags","grim")) {
+        if ($engineText -notmatch "(?im)\\b$requiredEngine\\b") {
+            throw "La build completa non espone l'engine atteso: $requiredEngine"
+        }
     }
+    $engineCount = @($engines | Where-Object { $_ -match "^\\s*[A-Za-z0-9_+-]+\\s+" }).Count
+    Write-Host "Engine rilevati : $engineCount" -ForegroundColor Green
+    if ($engineCount -lt 50) {
+        throw "Numero engine troppo basso ($engineCount): la build sembra ancora parziale."
+    }
+
 
     foreach ($requiredOutput in @(
         "scummremastered.zip",
@@ -556,10 +573,10 @@ Build tree: $buildDir
 
     Write-Host ""
     Write-Host "============================================================" -ForegroundColor Green
-    Write-Host "BUILD AUTOMATICA COMPLETATA" -ForegroundColor Green
-    Write-Host "ScummVM ReelMagic: $outExe" -ForegroundColor Green
+    Write-Host "BUILD SCUMMVM COMPLETA + REELMAGIC COMPLETATA" -ForegroundColor Green
+    Write-Host "ScummVM completo : $outExe" -ForegroundColor Green
     Write-Host "Avvio normale     : doppio clic su scummvm.exe" -ForegroundColor Green
-    Write-Host "Launcher          : Return to Zork (ReelMagic) [made:rtzrm]" -ForegroundColor Green
+    Write-Host "Engine            : tutti + Return to Zork ReelMagic [made:rtzrm]" -ForegroundColor Green
     Write-Host "Log build         : $logFile" -ForegroundColor Green
     Write-Host "============================================================" -ForegroundColor Green
 } catch {
