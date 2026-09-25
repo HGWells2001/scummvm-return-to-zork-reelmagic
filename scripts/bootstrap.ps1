@@ -17,28 +17,9 @@ if (-not $Destination) {
 }
 $Destination = [System.IO.Path]::GetFullPath($Destination)
 
-# Only the source subtrees actually needed by a Windows x64 MADE/ReelMagic build.
-# Cone mode also keeps files directly in ancestor directories, so root build files
-# such as configure/rules.mk and dists/scummvm.rc remain available.
-$sparsePaths = @(
-    "audio",
-    "backends",
-    "base",
-    "common",
-    "devtools/create_project",
-    "dists/engine-data",
-    "dists/msvc",
-    "dists/win32",
-    "engines/made",
-    "graphics",
-    "gui",
-    "icons",
-    "image",
-    "LICENSES",
-    "math",
-    "video"
-)
-
+# Full ScummVM source tree is required because this package now builds every
+# engine, not only MADE. We still use Git partial-clone filtering during fetch
+# to reduce transfer overhead where Git can do so safely.
 function Run-Git {
     param([Parameter(ValueFromRemainingArguments=$true)][string[]]$Args)
     & git @Args
@@ -57,13 +38,11 @@ if (Test-Path $Destination) {
 }
 
 Write-Host ""
-Write-Host "=== Return to Zork ReelMagic - sparse bootstrap ===" -ForegroundColor Cyan
+Write-Host "=== Return to Zork ReelMagic - full ScummVM bootstrap ===" -ForegroundColor Cyan
 Write-Host "Base ScummVM : $BaseCommit"
 Write-Host "Destinazione : $Destination"
-Write-Host "Modalita'    : partial clone blob:none + sparse checkout"
-Write-Host ""
-Write-Host "Scarico solo i sottoalberi necessari:" -ForegroundColor DarkCyan
-$sparsePaths | ForEach-Object { Write-Host "  $_" }
+Write-Host "Modalita'    : sorgenti completi ScummVM + patch ReelMagic"
+Write-Host "Engine       : tutti"
 
 Run-Git -Args @("-C", $Destination, "init")
 Run-Git -Args @("-C", $Destination, "config", "user.name", "RTZ ReelMagic Auto Builder")
@@ -78,12 +57,6 @@ Run-Git -Args @("-C", $Destination, "remote", "add", "origin", "https://github.c
 # Make origin a partial-clone promisor before any checkout can request blobs.
 Run-Git -Args @("-C", $Destination, "config", "remote.origin.promisor", "true")
 Run-Git -Args @("-C", $Destination, "config", "remote.origin.partialclonefilter", "blob:none")
-
-# Sparse definition comes before checkout. There is intentionally NO fallback
-# to a full checkout if this fails.
-Run-Git -Args @("-C", $Destination, "sparse-checkout", "init", "--cone")
-$sparseArgs = @("-C", $Destination, "sparse-checkout", "set", "--skip-checks") + $sparsePaths
-Run-Git -Args $sparseArgs
 
 # Fetch commit/tree metadata but no file blobs. Checkout then lazily obtains only
 # blobs covered by the sparse paths.
@@ -142,18 +115,14 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "commit locale ReelMagic fallito" }
 
     $head = (& git rev-parse HEAD).Trim()
-    $actualSparse = (& git sparse-checkout list 2>$null) -join "`r`n"
-
     $info = @"
 RTZ ReelMagic Return to Zork ReelMagic
 base_commit=$BaseCommit
 frame_pacing_commit=$framePacingCommit
 rtz_reelmagic_commit=$rtzCommit
 reelmagic_head=$head
-partial_clone_filter=blob:none
-sparse_checkout=cone
-sparse_paths:
-$actualSparse
+source_tree=full
+engine_set=all
 "@
     $enc = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText((Join-Path $Destination "RTZ_REELMAGIC_BUILD.txt"), $info, $enc)
@@ -162,6 +131,6 @@ $actualSparse
 }
 
 Write-Host ""
-Write-Host "REELMAGIC SPARSE BOOTSTRAP COMPLETATO" -ForegroundColor Green
-Write-Host "Sorgenti minimali pronti in: $Destination" -ForegroundColor Green
-Write-Host "Gli altri engine ScummVM non sono stati materializzati." -ForegroundColor Green
+Write-Host "REELMAGIC FULL SCUMMVM BOOTSTRAP COMPLETATO" -ForegroundColor Green
+Write-Host "Sorgenti completi pronti in: $Destination" -ForegroundColor Green
+Write-Host "Tutti gli engine ScummVM sono disponibili per la compilazione." -ForegroundColor Green
