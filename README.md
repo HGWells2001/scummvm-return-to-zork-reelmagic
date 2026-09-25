@@ -2,13 +2,13 @@
 
 Unofficial compatibility project for running the **ReelMagic edition of Return to Zork** through ScummVM's MADE engine.
 
-The goal is a normal ScummVM experience: detect the ReelMagic release as its own target, launch it from the standard ScummVM frontend, keep the original MPEG presentation semantics, and avoid external wrappers once the custom build is installed.
+The goal is a complete Windows ScummVM build with all engines enabled, plus native support for Return to Zork ReelMagic as its own MADE target. It launches from the standard ScummVM frontend, keeps the original MPEG presentation semantics, and avoids external wrappers once the custom build is installed.
 
 > This project is experimental and is **not an official ScummVM release**. It does not include Return to Zork, ReelMagic drivers, movies, data files, or any other proprietary game content.
 
 ## Current status
 
-The build currently provides:
+The build currently provides a full ScummVM x64 application with all available engines enabled, plus:
 
 - separate `made:rtzrm` detection for **Return to Zork (ReelMagic)**
 - ReelMagic MPEG normalization/descrambling in the shared ScummVM video layer
@@ -56,7 +56,7 @@ Then run:
 BUILD.cmd
 ```
 
-The script uses a partial clone plus sparse checkout. It does **not** fall back to cloning the whole ScummVM source tree.
+The script prepares the complete ScummVM source tree because every engine is compiled. It still uses Git transfer filtering where possible, then applies the ReelMagic changes on top.
 
 The resulting portable build is written to:
 
@@ -70,7 +70,7 @@ Launch:
 scummvm.exe
 ```
 
-Use **Add Game...** and select your legally obtained ReelMagic installation directory. ScummVM should detect:
+Use **Add Game...** with any game supported by ScummVM. For a legally obtained ReelMagic installation, ScummVM should additionally detect:
 
 ```text
 Return to Zork (ReelMagic)
@@ -114,7 +114,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the compatibility pipelin
 
 ```text
 BUILD.cmd              one-click Windows build
-build.ps1              reproducible sparse checkout + build pipeline
+build.ps1              complete ScummVM x64 + ReelMagic build pipeline
 scripts/               patch application and PowerShell validators
 tests/                 Python source/behavior checks
 docs/                  reverse-engineering and architecture notes
