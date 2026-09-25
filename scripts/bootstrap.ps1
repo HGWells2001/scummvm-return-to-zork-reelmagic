@@ -17,9 +17,31 @@ if (-not $Destination) {
 }
 $Destination = [System.IO.Path]::GetFullPath($Destination)
 
-# Full ScummVM source tree is required because this package now builds every
-# engine, not only MADE. We still use Git partial-clone filtering during fetch
-# to reduce transfer overhead where Git can do so safely.
+# Build every ScummVM engine, but materialize only the source subtrees needed
+# for a Windows x64 build. This deliberately excludes documentation and
+# platform packaging trees such as tvOS/iOS/macOS, which do not affect Windows
+# game support and can consume substantial disk space / trigger deep-path issues.
+$sparsePaths = @(
+    ".github/vcpkg-ports",
+    "audio",
+    "backends",
+    "base",
+    "common",
+    "devtools/create_project",
+    "dists/engine-data",
+    "dists/msvc",
+    "dists/networking",
+    "dists/soundfonts",
+    "dists/win32",
+    "engines",
+    "graphics",
+    "gui",
+    "icons",
+    "image",
+    "LICENSES",
+    "math",
+    "video"
+)
 function Run-Git {
     param([Parameter(ValueFromRemainingArguments=$true)][string[]]$Args)
     & git @Args
@@ -41,8 +63,9 @@ Write-Host ""
 Write-Host "=== Return to Zork ReelMagic - full ScummVM bootstrap ===" -ForegroundColor Cyan
 Write-Host "Base ScummVM : $BaseCommit"
 Write-Host "Destinazione : $Destination"
-Write-Host "Modalita'    : sorgenti completi ScummVM + patch ReelMagic"
+Write-Host "Modalita'    : Windows x64, tutti gli engine + patch ReelMagic"
 Write-Host "Engine       : tutti"
+Write-Host "Esclusi      : docs e packaging di piattaforme non-Windows"
 
 Run-Git -Args @("-C", $Destination, "init")
 Run-Git -Args @("-C", $Destination, "config", "user.name", "RTZ ReelMagic Auto Builder")
@@ -62,8 +85,15 @@ Run-Git -Args @("-C", $Destination, "remote", "add", "origin", "https://github.c
 Run-Git -Args @("-C", $Destination, "config", "remote.origin.promisor", "true")
 Run-Git -Args @("-C", $Destination, "config", "remote.origin.partialclonefilter", "blob:none")
 
-# Fetch commit/tree metadata with partial-clone filtering. The checkout then
-# materializes the complete ScummVM tree.
+# Sparse checkout is Windows-focused, not engine-focused: the complete engines/
+# subtree is included, so --enable-all-engines still produces a complete
+# ScummVM game-engine build while docs and unrelated platform packages stay out.
+Run-Git -Args @("-C", $Destination, "sparse-checkout", "init", "--cone")
+$sparseArgs = @("-C", $Destination, "sparse-checkout", "set", "--skip-checks") + $sparsePaths
+Run-Git -Args $sparseArgs
+
+# Fetch commit/tree metadata with partial-clone filtering. Checkout lazily
+# obtains only the Windows build subtrees selected above.
 Run-Git -Args @("-C", $Destination, "fetch", "--filter=blob:none", "--no-tags", "--depth", "1", "origin", $BaseCommit)
 Run-Git -Args @("-C", $Destination, "checkout", "-b", "rtz-reelmagic", $BaseCommit)
 
@@ -125,7 +155,7 @@ base_commit=$BaseCommit
 frame_pacing_commit=$framePacingCommit
 rtz_reelmagic_commit=$rtzCommit
 reelmagic_head=$head
-source_tree=full
+source_tree=full-windows
 engine_set=all
 "@
     $enc = New-Object System.Text.UTF8Encoding($false)
@@ -135,6 +165,6 @@ engine_set=all
 }
 
 Write-Host ""
-Write-Host "REELMAGIC FULL SCUMMVM BOOTSTRAP COMPLETATO" -ForegroundColor Green
-Write-Host "Sorgenti completi pronti in: $Destination" -ForegroundColor Green
+Write-Host "REELMAGIC SCUMMVM WINDOWS BOOTSTRAP COMPLETATO" -ForegroundColor Green
+Write-Host "Sorgenti Windows pronti in: $Destination" -ForegroundColor Green
 Write-Host "Tutti gli engine ScummVM sono disponibili per la compilazione." -ForegroundColor Green
