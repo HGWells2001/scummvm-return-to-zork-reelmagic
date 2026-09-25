@@ -250,6 +250,18 @@ try {
 
     $sourceDir = Join-Path $WorkRoot "scummvm-rtz-reelmagic"
     $marker = Join-Path $sourceDir "RTZ_REELMAGIC_BUILD.txt"
+
+    # Older releases of this builder created a sparse MADE-only source tree.
+    # Detect it automatically and rebuild it once so users do not need to
+    # manually delete WORK after upgrading to the complete ScummVM builder.
+    if (Test-Path $marker -PathType Leaf) {
+        $markerText = Get-Content $marker -Raw
+        if (-not $markerText.Contains("source_tree=full")) {
+            Write-Host "Vecchio sorgente MADE-only rilevato: ricreo il tree ScummVM completo." -ForegroundColor Yellow
+            Remove-Item -Recurse -Force $sourceDir
+        }
+    }
+
     if ($RebuildSource -and (Test-Path $sourceDir)) {
         $owned = Test-Path $marker
         if (-not $owned) {
