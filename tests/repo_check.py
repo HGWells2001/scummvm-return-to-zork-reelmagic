@@ -39,10 +39,12 @@ for path in root.rglob("*"):
 
 build = (root / "build.ps1").read_text(encoding="utf-8")
 assert 'scripts\\bootstrap.ps1' in build
-assert '"libpng"' in build
-assert '"--enable-png"' in build
+assert '"--enable-all-engines"' in build
+assert 'vcpkg.json' in build
+assert 'dists\\engine-data' in build
 assert '"gui-icons.dat"' in build
 assert '"gui-icons-rtzrm.dat"' in build
+assert 'source_tree=full' in build
 
 stage = (root / "scripts" / "stage.ps1").read_text(encoding="utf-8")
 assert "RTZRM native software renderer" in stage
