@@ -47,7 +47,11 @@ Write-Host "Engine       : tutti"
 Run-Git -Args @("-C", $Destination, "init")
 Run-Git -Args @("-C", $Destination, "config", "user.name", "RTZ ReelMagic Auto Builder")
 Run-Git -Args @("-C", $Destination, "config", "user.email", "rtz-reelmagic-local@localhost")
-# Keep the sparse working tree byte-stable. The Stage scripts write LF and must
+# Full ScummVM contains some very deep Apple/tvOS paths. Git for Windows
+# needs long-path support enabled before checkout, otherwise a full tree can
+# fail with "Filename too long".
+Run-Git -Args @("-C", $Destination, "config", "core.longpaths", "true")
+# Keep the working tree byte-stable. The Stage scripts write LF and must
 # not be reinterpreted as CRLF by a global Git-for-Windows setting.
 Run-Git -Args @("-C", $Destination, "config", "core.autocrlf", "false")
 Run-Git -Args @("-C", $Destination, "config", "core.eol", "lf")
@@ -58,8 +62,8 @@ Run-Git -Args @("-C", $Destination, "remote", "add", "origin", "https://github.c
 Run-Git -Args @("-C", $Destination, "config", "remote.origin.promisor", "true")
 Run-Git -Args @("-C", $Destination, "config", "remote.origin.partialclonefilter", "blob:none")
 
-# Fetch commit/tree metadata but no file blobs. Checkout then lazily obtains only
-# blobs covered by the sparse paths.
+# Fetch commit/tree metadata with partial-clone filtering. The checkout then
+# materializes the complete ScummVM tree.
 Run-Git -Args @("-C", $Destination, "fetch", "--filter=blob:none", "--no-tags", "--depth", "1", "origin", $BaseCommit)
 Run-Git -Args @("-C", $Destination, "checkout", "-b", "rtz-reelmagic", $BaseCommit)
 
