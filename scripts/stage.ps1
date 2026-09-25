@@ -1,0 +1,58 @@
+param(
+    [Parameter(Mandatory=$true)][string]$ScummVM,
+    [string]$RtzrmDat = "",
+    [string]$ReelMagicDrivers = ""
+)
+
+$ErrorActionPreference = "Stop"
+$PackageRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+function Invoke-EmbeddedStage {
+    param(
+        [Parameter(Mandatory=$true)][string]$Name,
+        [Parameter(Mandatory=$true)][string]$Data,
+        [hashtable]$Parameters
+    )
+
+    Write-Host ""
+    Write-Host ">>> $Name" -ForegroundColor Cyan
+
+    $bytes = [Convert]::FromBase64String($Data)
+    $source = [Text.Encoding]::UTF8.GetString($bytes)
+
+    # Embedded stages normally only need their parameters. If a stage ever
+    # references its own script directory, point it back to this flat package.
+    $source = $source.Replace(
+        '$root = Split-Path -Parent $MyInvocation.MyCommand.Path',
+        '$root = $script:RTZPackageRoot'
+    )
+    $source = $source.Replace(
+        '$here = Split-Path -Parent $MyInvocation.MyCommand.Path',
+        '$here = $script:RTZPackageRoot'
+    )
+
+    $script:RTZPackageRoot = $PackageRoot
+    $block = [ScriptBlock]::Create($source)
+    & $block @Parameters
+}
+
+function Invoke-Validator {
+    param(
+        [Parameter(Mandatory=$true)][string]$Name,
+        [hashtable]$Parameters
+    )
+
+    $path = Join-Path $PackageRoot $Name
+    if (-not (Test-Path $path)) {
+        throw "Validator mancante: $Name"
+    }
+
+    Write-Host ">>> $Name" -ForegroundColor DarkCyan
+    & $path @Parameters
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Name fallito"
+    }
+}
+
+$stages = @(
+    @{ Name = 'stage1_refactor_reelmagic.ps1'; Data = 'cGFyYW0oCiAgICBbc3RyaW5nXSRTY3VtbVZNID0gIi4iCikKCiRFcnJvckFjdGlvblByZWZlcmVuY2UgPSAiU3RvcCIKCmZ1bmN0aW9uIFdyaXRlLVV0ZjhOb0JvbShbc3RyaW5nXSRQYXRoLCBbc3RyaW5nXSRUZXh0KSB7CiAgICAkZW5jID0gTmV3LU9iamVjdCBTeXN0ZW0uVGV4dC5VVEY4RW5jb2RpbmcoJGZhbHNlKQogICAgJGZ1bGwgPSBpZiAoW1N5c3RlbS5JTy5QYXRoXTo6SXNQYXRoUm9vdGVkKCRQYXRoKSkgeyAkUGF0aCB9IGVsc2UgeyBKb2luLVBhdGggKEdldC1Mb2NhdGlvbikgJFBhdGggfQogICAgW1N5c3RlbS5JTy5GaWxlXTo6V3JpdGVBbGxUZXh0KCRmdWxsLCAkVGV4dCwgJGVuYykKfQoKZnVuY3Rpb24gTm9ybWFsaXplLUxmKFtzdHJpbmddJFRleHQpIHsKICAgIGlmICgkbnVsbCAtZXEgJFRleHQpIHsgcmV0dXJuICRUZXh0IH0KICAgIHJldHVybiAkVGV4dC5SZXBsYWNlKCJgcmBuIiwgImBuIikuUmVwbGFjZSgiYHIiLCAiYG4iKQp9CgpmdW5jdGlvbiBOb3JtYWxpemUtRW9mKFtzdHJpbmddJFRleHQpIHsKICAgICRUZXh0ID0gTm9ybWFsaXplLUxmICRUZXh0CiAgICAjIFJlbW92ZSBibGFuay93aGl0ZXNwYWNlLW9ubHkgbGluZXMgYXQgRU9GLCB0aGVuIHJlc3RvcmUgZXhhY3RseSBvbmUgTEYuCiAgICAkVGV4dCA9IFtTeXN0ZW0uVGV4dC5SZWd1bGFyRXhwcmVzc2lvbnMuUmVnZXhdOjpSZXBsYWNlKAogICAgICAgICRUZXh0LAogICAgICAgICIoP3MpKD86WyBgdF0qYG4pK1x6IiwKICAgICAgICAiIgogICAgKQogICAgcmV0dXJuICRUZXh0ICsgImBuIgp9CgpmdW5jdGlvbiBSdW4tR2l0IHsKICAgIHBhcmFtKFtQYXJhbWV0ZXIoVmFsdWVGcm9tUmVtYWluaW5nQXJndW1lbnRzPSR0cnVlKV1bc3RyaW5nW11dJEFyZ3MpCiAgICAmIGdpdCBAQXJncwogICAgaWYgKCRMQVNURVhJVENPREUgLW5lIDApIHsKICAgICAgICB0aHJvdyAiZ2l0ICQoJEFyZ3MgLWpvaW4gJyAnKSBmYWxsaXRvIGNvbiBjb2RpY2UgJExBU1RFWElUQ09ERSIKICAgIH0KfQoKU2V0LUxvY2F0aW9uICRTY3VtbVZNCgppZiAoLW5vdCAoVGVzdC1QYXRoICJlbmdpbmVzL21hZGUvbWFnaWNhbF9tcGVnLmNwcCIpKSB7CiAgICB0aHJvdyAiTm9uIHRyb3ZvIGVuZ2luZXMvbWFkZS9tYWdpY2FsX21wZWcuY3BwLiBFc2VndWkgcXVlc3RvIHNjcmlwdCBzdWxsYSBicmFuY2ggbWFkZS9yZWVsbWFnaWMgZGVsbGEgUFIgIzc4NDkuIgp9CgpOZXctSXRlbSAtSXRlbVR5cGUgRGlyZWN0b3J5IC1Gb3JjZSAtUGF0aCAidmlkZW8iIHwgT3V0LU51bGwKClJ1bi1HaXQgLUFyZ3MgQCgibXYiLCAiZW5naW5lcy9tYWRlL21hZ2ljYWxfbXBlZy5oIiwgInZpZGVvL3JlZWxtYWdpY19kZWNvZGVyLmgiKQpSdW4tR2l0IC1BcmdzIEAoIm12IiwgImVuZ2luZXMvbWFkZS9tYWdpY2FsX21wZWcuY3BwIiwgInZpZGVvL3JlZWxtYWdpY19kZWNvZGVyLmNwcCIpCgokaCA9IE5vcm1hbGl6ZS1MZiAoR2V0LUNvbnRlbnQgInZpZGVvL3JlZWxtYWdpY19kZWNvZGVyLmgiIC1SYXcpCiRoID0gJGguUmVwbGFjZSgiTUFERV9NQUdJQ0FMX01QRUdfSCIsICJWSURFT19SRUVMTUFHSUNfREVDT0RFUl9IIikKJGggPSAkaC5SZXBsYWNlKCJuYW1lc3BhY2UgTWFkZSB7IiwgIm5hbWVzcGFjZSBWaWRlbyB7IikKJGggPSAkaC5SZXBsYWNlKCJjbGFzcyBNYWdpY2FsTXBlZyIsICJjbGFzcyBSZWVsTWFnaWNNUEVHIikKJGggPSAkaC5SZXBsYWNlKCJuYW1lc3BhY2UgTWFkZSIsICJuYW1lc3BhY2UgVmlkZW8iKQokaCA9ICRoLlJlcGxhY2UoIk1BREVfTUFHSUNBTF9NUEVHX0giLCAiVklERU9fUkVFTE1BR0lDX0RFQ09ERVJfSCIpCiRoID0gJGguUmVwbGFjZSgiaXNNYWdpY2FsIiwgImlzUmVlbE1hZ2ljU3RyZWFtIikKJGggPSAkaC5SZXBsYWNlKCJ1bmxvY2soQ29tbW9uOjpTZWVrYWJsZVJlYWRTdHJlYW0gJnN0cmVhbSwiLCAibm9ybWFsaXplKENvbW1vbjo6U2Vla2FibGVSZWFkU3RyZWFtICZzdHJlYW0sIikKJGggPSAkaC5SZXBsYWNlKCJ1bmxvY2tCdWZmZXIoYnl0ZSAqZGF0YSwgdWludDMyIHNpemUsIHVpbnQzMiBtYWdpY0tleSkiLCAiZGVzY3JhbWJsZVZpZGVvKGJ5dGUgKmRhdGEsIHVpbnQzMiBzaXplLCB1aW50MzIgbWFnaWNLZXkpIikKV3JpdGUtVXRmOE5vQm9tICJ2aWRlby9yZWVsbWFnaWNfZGVjb2Rlci5oIiAoTm9ybWFsaXplLUVvZiAkaCkKCiRjcHAgPSBOb3JtYWxpemUtTGYgKEdldC1Db250ZW50ICJ2aWRlby9yZWVsbWFnaWNfZGVjb2Rlci5jcHAiIC1SYXcpCiRjcHAgPSAkY3BwLlJlcGxhY2UoJyNpbmNsdWRlICJtYWRlL21hZ2ljYWxfbXBlZy5oIicsICcjaW5jbHVkZSAidmlkZW8vcmVlbG1hZ2ljX2RlY29kZXIuaCInKQokY3BwID0gJGNwcC5SZXBsYWNlKCJuYW1lc3BhY2UgTWFkZSB7IiwgIm5hbWVzcGFjZSBWaWRlbyB7IikKJGNwcCA9ICRjcHAuUmVwbGFjZSgibmFtZXNwYWNlIE1hZGUiLCAibmFtZXNwYWNlIFZpZGVvIikKJGNwcCA9ICRjcHAuUmVwbGFjZSgiTWFnaWNhbE1wZWc6OiIsICJSZWVsTWFnaWNNUEVHOjoiKQokY3BwID0gJGNwcC5SZXBsYWNlKCJpc01hZ2ljYWwiLCAiaXNSZWVsTWFnaWNTdHJlYW0iKQokY3BwID0gJGNwcC5SZXBsYWNlKCJ1bmxvY2tCdWZmZXIiLCAiZGVzY3JhbWJsZVZpZGVvIikKJGNwcCA9ICRjcHAuUmVwbGFjZSgiUmVlbE1hZ2ljTVBFRzo6dW5sb2NrKENvbW1vbjo6U2Vla2FibGVSZWFkU3RyZWFtICZzdHJlYW0sIiwgIlJlZWxNYWdpY01QRUc6Om5vcm1hbGl6ZShDb21tb246OlNlZWthYmxlUmVhZFN0cmVhbSAmc3RyZWFtLCIpCiRjcHAgPSAkY3BwLlJlcGxhY2UoIk1hZ2ljYWxNcGVnOiIsICJSZWVsTWFnaWNNUEVHOiIpCiRjcHAgPSAkY3BwLlJlcGxhY2UoImNvbnN0IHVpbnQzMiBwYXRjaGVkID0gZGVzY3JhbWJsZVZpZGVvKGRhdGEsIHNpemUsIG1hZ2ljS2V5KTsiLCAiY29uc3QgdWludDMyIHBhdGNoZWQgPSBkZXNjcmFtYmxlVmlkZW8oZGF0YSwgc2l6ZSwgbWFnaWNLZXkpOyIpCldyaXRlLVV0ZjhOb0JvbSAidmlkZW8vcmVlbG1hZ2ljX2RlY29kZXIuY3BwIiAoTm9ybWFsaXplLUVvZiAkY3BwKQoKJHBsYXllciA9IE5vcm1hbGl6ZS1MZiAoR2V0LUNvbnRlbnQgImVuZ2luZXMvbWFkZS9tcGVncGxheWVyLmNwcCIgLVJhdykKJHBsYXllciA9ICRwbGF5ZXIuUmVwbGFjZSgnI2luY2x1ZGUgIm1hZGUvbWFnaWNhbF9tcGVnLmgiJywgJyNpbmNsdWRlICJ2aWRlby9yZWVsbWFnaWNfZGVjb2Rlci5oIicpCiRwbGF5ZXIgPSAkcGxheWVyLlJlcGxhY2UoIk1hZ2ljYWxNcGVnOjppc01hZ2ljYWwiLCAiVmlkZW86OlJlZWxNYWdpY01QRUc6OmlzUmVlbE1hZ2ljU3RyZWFtIikKJHBsYXllciA9ICRwbGF5ZXIuUmVwbGFjZSgiTWFnaWNhbE1wZWc6OnVubG9jayg1
