@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 root = Path(__file__).resolve().parent.parent
 
@@ -16,6 +17,16 @@ for path in required:
 
 for path in (root / "tests").glob("*.py"):
     compile(path.read_text(encoding="utf-8"), str(path), "exec")
+
+# Every literal PowerShell dependency referenced through Join-Path must exist.
+# This catches accidental removal/renaming of validators from the public repo.
+scripts_dir = root / "scripts"
+for ps1 in list(scripts_dir.glob("*.ps1")) + [root / "build.ps1"]:
+    text = ps1.read_text(encoding="utf-8")
+    for rel in re.findall(r"Join-Path\s+\$(?:root|here|PackageRoot)\s+['\"]([^'\"]+\.ps1)['\"]", text):
+        candidate = (ps1.parent / rel.replace("\\", "/")).resolve()
+        if not candidate.is_file():
+            raise AssertionError(f"missing PowerShell dependency: {ps1.relative_to(root)} -> {rel}")
 
 # Repository policy: never ship game/media/driver payloads.
 blocked_suffixes = {

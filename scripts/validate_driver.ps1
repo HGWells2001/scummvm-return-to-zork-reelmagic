@@ -6,8 +6,8 @@ param(
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $MyInvocation.MyCommand.Path
 
-& (Join-Path $root 'validate_stage8.ps1') -ScummVM $ScummVM -RtzrmDat $RtzrmDat
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+& (Join-Path $root 'validate_maderm.ps1') -ScummVM $ScummVM -RtzrmDat $RtzrmDat
+if ($LASTEXITCODE -ne 0) { throw 'Validazione MADERM preliminare fallita' }
 
 $mp=Get-Content (Join-Path $ScummVM 'engines/made/mpegplayer.cpp') -Raw
 if (!$mp.Contains('decoder was just created after the global pause began')) { throw 'Stage 9 global-pause fix mancante' }
