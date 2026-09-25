@@ -32,10 +32,10 @@ $workDrive = New-Object System.IO.DriveInfo($workDriveRoot)
 $freeGiB = [math]::Round($workDrive.AvailableFreeSpace / 1GB, 1)
 $minimumFreeGiB = 12
 if ($freeGiB -lt $minimumFreeGiB) {
-    throw "Spazio insufficiente su $workDriveRoot: liberi $freeGiB GB. Per la build completa ScummVM servono almeno $minimumFreeGiB GB liberi."
+    throw "Spazio insufficiente su ${workDriveRoot}: liberi $freeGiB GB. Per la build completa ScummVM servono almeno $minimumFreeGiB GB liberi."
 }
 if ($freeGiB -lt 20) {
-    Write-Host "ATTENZIONE: spazio libero su $workDriveRoot: $freeGiB GB. La build completa puo' usare parecchi GB." -ForegroundColor Yellow
+    Write-Host "ATTENZIONE: spazio libero su ${workDriveRoot}: $freeGiB GB. La build completa puo' usare parecchi GB." -ForegroundColor Yellow
 }
 
 $logDir = Join-Path $WorkRoot "logs"
