@@ -440,6 +440,7 @@ try {
         "/p:VcpkgEnableManifest=true",
         "/p:VcpkgRoot=$vcpkgRoot\",
         "/p:VcpkgManifestRoot=$buildDir\",
+        "/p:VcpkgXUseBuiltInApplocalDeps=true",
         "/v:minimal"
     ) -What "Compilazione ScummVM completo + ReelMagic Release x64"
 
@@ -447,6 +448,11 @@ try {
         Sort-Object LastWriteTime -Descending |
         Select-Object -First 1
     if (-not $exe) { throw "scummvm.exe non trovato dopo la compilazione." }
+
+    # First verify the executable in MSBuild's own output directory. This tells
+    # us immediately whether a failure belongs to compilation/linking or to
+    # portable packaging.
+    Invoke-Native -Exe $exe.FullName -Arguments @("--version") -What "Smoke test eseguibile appena compilato"
 
     if (Test-Path $OutputDir) { Remove-Item -Recurse -Force $OutputDir }
     New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
@@ -456,12 +462,19 @@ try {
     if (-not (Test-Path $installed -PathType Container)) {
         throw "Dipendenze vcpkg x64-windows non trovate: $installed"
     }
-    $dllDir = Join-Path $installed "bin"
-    if (Test-Path $dllDir) {
-        Get-ChildItem $dllDir -Filter "*.dll" -File | ForEach-Object {
-            Copy-Item $_.FullName $OutputDir -Force
-        }
+
+    # MSBuild/vcpkg app-local places only the DLLs actually required by
+    # scummvm.exe next to the built executable. Package those exact DLLs
+    # instead of copying every DLL from the whole vcpkg installation.
+    $builtExeDir = $exe.Directory.FullName
+    $appLocalDlls = @(Get-ChildItem $builtExeDir -Filter "*.dll" -File -ErrorAction SilentlyContinue)
+    if ($appLocalDlls.Count -eq 0) {
+        throw "Nessuna DLL app-local trovata accanto a scummvm.exe: $builtExeDir"
     }
+    foreach ($dll in $appLocalDlls) {
+        Copy-Item $dll.FullName $OutputDir -Force
+    }
+    Write-Host "DLL runtime app-local : $($appLocalDlls.Count)" -ForegroundColor Green
 
     # Native ScummVM GUI assets. These are the same prebuilt resources shipped
     # in the ScummVM source tree/release packages, not custom artwork.
