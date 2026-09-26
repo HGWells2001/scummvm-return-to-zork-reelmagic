@@ -4,7 +4,8 @@ param(
     [string]$RtzrmDat = "",
     [string]$ReelMagicDrivers = "",
     [switch]$RebuildSource,
-    [switch]$SkipValidation
+    [switch]$SkipValidation,
+    [switch]$KeepWork
 )
 
 $ErrorActionPreference = "Stop"
@@ -600,6 +601,31 @@ Build tree: $buildDir
         if (-not (Test-Path (Join-Path $OutputDir $requiredOutput) -PathType Leaf)) {
             throw "Output nativo incompleto: manca $requiredOutput"
         }
+    }
+
+    # The build tree can grow to tens of GB because it contains the full
+    # compiler intermediates, vcpkg sources/buildtrees/packages and ScummVM
+    # object/static-library files. They are not needed to run the portable
+    # build. Remove them after a successful smoke test unless explicitly kept.
+    if (-not $KeepWork) {
+        Write-Host ""
+        Write-Host "=== Pulizia file temporanei di compilazione ===" -ForegroundColor Cyan
+
+        foreach ($cleanupPath in @(
+            $sourceDir,
+            (Join-Path $WorkRoot "vcpkg"),
+            (Join-Path $WorkRoot "_python_shim"),
+            (Join-Path $WorkRoot "rtzrm-gui-metadata")
+        )) {
+            if ($cleanupPath -and (Test-Path $cleanupPath)) {
+                Write-Host "Rimuovo: $cleanupPath"
+                Remove-Item -LiteralPath $cleanupPath -Recurse -Force -ErrorAction Stop
+            }
+        }
+
+        Write-Host "Intermedi di compilazione rimossi. Restano output portabile e log." -ForegroundColor Green
+    } else {
+        Write-Host "KeepWork attivo: intermedi di compilazione conservati in $WorkRoot" -ForegroundColor Yellow
     }
 
     Write-Host ""
