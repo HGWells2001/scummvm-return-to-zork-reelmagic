@@ -580,11 +580,11 @@ Build tree: $buildDir
     if ($LASTEXITCODE -ne 0) { throw "Impossibile leggere la lista engine." }
     $engineText = ($engines -join "`n")
     foreach ($requiredEngine in @("made","scumm","sci","ags","grim")) {
-        if ($engineText -notmatch "(?im)\\b$requiredEngine\\b") {
+        if ($engineText -notmatch ("(?im)\b" + [regex]::Escape($requiredEngine) + "\b")) {
             throw "La build completa non espone l'engine atteso: $requiredEngine"
         }
     }
-    $engineCount = @($engines | Where-Object { $_ -match "^\\s*[A-Za-z0-9_+-]+\\s+" }).Count
+    $engineCount = @($engines | Where-Object { $_ -match "^\s*[A-Za-z0-9_+-]+\s+" }).Count
     Write-Host "Engine rilevati : $engineCount" -ForegroundColor Green
     if ($engineCount -lt 50) {
         throw "Numero engine troppo basso ($engineCount): la build sembra ancora parziale."
