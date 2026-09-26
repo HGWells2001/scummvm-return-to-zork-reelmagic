@@ -514,6 +514,55 @@ foreach ($needle in @(
 
 Write-Host "Native launcher + renderer software + icona ufficiale RTZ OK" -ForegroundColor Green
 
+# --------------------------------------------------------------------------
+# MADE proportional-font fix.
+# Font resources store a per-character width, but upstream Screen::printChar
+# always rasterizes all 8 bits of every glyph row. Some RTZ credit fonts leave
+# non-glyph bits set outside the declared width, producing stray vertical
+# strokes and malformed-looking letters when overlaid on ReelMagic video.
+# Rasterize only the declared character width (capped at the 8-bit row size).
+# --------------------------------------------------------------------------
+Write-Host ""
+Write-Host ">>> MADE proportional font fix" -ForegroundColor Cyan
+
+$madeScreenPath = Join-Path $ScummVM "engines\made\screen.cpp"
+if (-not (Test-Path $madeScreenPath -PathType Leaf)) {
+    throw "MADE screen.cpp non trovato: $madeScreenPath"
+}
+
+$madeScreen = Get-Content $madeScreenPath -Raw
+if (-not $madeScreen.Contains("RTZRM proportional font width")) {
+    $fontOld = @'
+	uint width = 8, height = _font->getHeight();
+	byte *charData = _font->getChar(c);
+'@
+    $fontNew = @'
+	// RTZRM proportional font width: FONT resources declare the meaningful
+	// bitmap width for each glyph. Do not render stale bits to its right.
+	uint width = MIN<uint>(8, _font->getCharWidth(c));
+	uint height = _font->getHeight();
+	byte *charData = _font->getChar(c);
+'@
+    if (-not $madeScreen.Contains($fontOld)) {
+        throw "Anchor printChar MADE inatteso: impossibile applicare il fix font proporzionale."
+    }
+    $madeScreen = $madeScreen.Replace($fontOld, $fontNew)
+    $enc = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($madeScreenPath, $madeScreen, $enc)
+}
+
+$madeScreenCheck = Get-Content $madeScreenPath -Raw
+foreach ($needle in @(
+    "RTZRM proportional font width",
+    "MIN<uint>(8, _font->getCharWidth(c))"
+)) {
+    if (-not $madeScreenCheck.Contains($needle)) {
+        throw "MADE proportional font check fallito: $needle"
+    }
+}
+
+Write-Host "MADE font proporzionale: larghezza glifo rispettata." -ForegroundColor Green
+
 Write-Host ""
 Write-Host ">>> final validation" -ForegroundColor DarkCyan
 $finalParams = @{ ScummVM = $ScummVM }
