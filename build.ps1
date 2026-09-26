@@ -43,6 +43,7 @@ $logDir = Join-Path $WorkRoot "logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $logFile = Join-Path $logDir "reelmagic-build-$stamp.log"
+$buildSucceeded = $false
 
 function Write-Utf8NoBom([string]$Path,[string]$Text) {
     $enc = New-Object System.Text.UTF8Encoding($false)
@@ -603,30 +604,7 @@ Build tree: $buildDir
         }
     }
 
-    # The build tree can grow to tens of GB because it contains the full
-    # compiler intermediates, vcpkg sources/buildtrees/packages and ScummVM
-    # object/static-library files. They are not needed to run the portable
-    # build. Remove them after a successful smoke test unless explicitly kept.
-    if (-not $KeepWork) {
-        Write-Host ""
-        Write-Host "=== Pulizia file temporanei di compilazione ===" -ForegroundColor Cyan
-
-        foreach ($cleanupPath in @(
-            $sourceDir,
-            (Join-Path $WorkRoot "vcpkg"),
-            (Join-Path $WorkRoot "_python_shim"),
-            (Join-Path $WorkRoot "rtzrm-gui-metadata")
-        )) {
-            if ($cleanupPath -and (Test-Path $cleanupPath)) {
-                Write-Host "Rimuovo: $cleanupPath"
-                Remove-Item -LiteralPath $cleanupPath -Recurse -Force -ErrorAction Stop
-            }
-        }
-
-        Write-Host "Intermedi di compilazione rimossi. Restano output portabile e log." -ForegroundColor Green
-    } else {
-        Write-Host "KeepWork attivo: intermedi di compilazione conservati in $WorkRoot" -ForegroundColor Yellow
-    }
+    $buildSucceeded = $true
 
     Write-Host ""
     Write-Host "============================================================" -ForegroundColor Green
@@ -642,5 +620,36 @@ Build tree: $buildDir
     Write-Host "Log completo: $logFile" -ForegroundColor Yellow
     throw
 } finally {
-    Stop-Transcript | Out-Null
+    try {
+        Stop-Transcript | Out-Null
+    } catch {
+        # Ignore transcript shutdown failures during cleanup.
+    }
+
+    if ($buildSucceeded -and -not $KeepWork) {
+        try {
+            # Preserve the final build transcript outside WorkRoot before deleting it.
+            if ((Test-Path $logFile -PathType Leaf) -and (Test-Path $OutputDir -PathType Container)) {
+                Copy-Item -LiteralPath $logFile -Destination (Join-Path $OutputDir "BUILD.log") -Force
+            }
+
+            $workFull = [System.IO.Path]::GetFullPath($WorkRoot).TrimEnd('\')
+            $outputFull = [System.IO.Path]::GetFullPath($OutputDir).TrimEnd('\')
+            if ($outputFull.StartsWith($workFull + "\", [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "OutputDir si trova dentro WorkRoot: non posso cancellare WorkRoot senza eliminare anche l'output."
+            }
+
+            if (Test-Path $WorkRoot) {
+                Write-Host ""
+                Write-Host "=== Pulizia finale ===" -ForegroundColor Cyan
+                Write-Host "Rimuovo completamente: $WorkRoot"
+                Remove-Item -LiteralPath $WorkRoot -Recurse -Force -ErrorAction Stop
+                Write-Host "Cartella temporanea RTZRM-ScummVM-Build eliminata." -ForegroundColor Green
+            }
+        } catch {
+            Write-Host "ATTENZIONE: build riuscita, ma pulizia WorkRoot non completata: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    } elseif ($buildSucceeded -and $KeepWork) {
+        Write-Host "KeepWork attivo: cartella di compilazione conservata in $WorkRoot" -ForegroundColor Yellow
+    }
 }
