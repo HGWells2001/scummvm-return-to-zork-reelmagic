@@ -4,7 +4,7 @@ cd /d "%~dp0"
 echo RTZRM Builder WIN-ALL-ENGINES-v2
 echo.
 
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0build.ps1"
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0build.ps1" %*
 set "RC=%ERRORLEVEL%"
 
 echo.
