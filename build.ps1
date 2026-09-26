@@ -578,16 +578,68 @@ Build tree: $buildDir
     # Smoke-test the portable output and verify this is really a full build.
     $outExe = Join-Path $OutputDir "scummvm.exe"
     Invoke-Native -Exe $outExe -Arguments @("--version") -What "Smoke test scummvm.exe"
-    $engines = & $outExe --list-engines 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "Impossibile leggere la lista engine." }
-    $engineText = ($engines -join "`n")
+    # Prefer the machine-readable engine list. On Windows PowerShell 5.1,
+    # relying only on LASTEXITCODE for this command proved brittle even when
+    # ScummVM emitted a valid engine list, so validate the actual JSON payload.
+    $savedErrorAction = $ErrorActionPreference
+    $engineJsonOutput = @()
+    $engineListExitCode = 0
+    try {
+        $ErrorActionPreference = "Continue"
+        $engineJsonOutput = @(& $outExe --list-engines-json 2>$null)
+        $engineListExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $savedErrorAction
+    }
+
+    $engineJsonText = (($engineJsonOutput | ForEach-Object { $_.ToString() }) -join "`n").Trim()
+    $engineIds = @()
+    if (-not [string]::IsNullOrWhiteSpace($engineJsonText)) {
+        try {
+            $engineJsonObject = $engineJsonText | ConvertFrom-Json
+            if ($engineJsonObject) {
+                $engineIds = @($engineJsonObject.PSObject.Properties | ForEach-Object { $_.Name })
+            }
+        } catch {
+            Write-Host "Lista engine JSON non interpretabile, provo il formato testuale." -ForegroundColor Yellow
+        }
+    }
+
+    # Fallback to the detection-engine list if JSON could not be parsed.
+    if ($engineIds.Count -eq 0) {
+        $savedErrorAction = $ErrorActionPreference
+        $allEngineOutput = @()
+        try {
+            $ErrorActionPreference = "Continue"
+            $allEngineOutput = @(& $outExe --list-all-engines 2>$null)
+        } finally {
+            $ErrorActionPreference = $savedErrorAction
+        }
+
+        $engineIds = @(
+            $allEngineOutput |
+            ForEach-Object { $_.ToString() } |
+            Where-Object { $_ -match "^\s*([A-Za-z0-9_+-]+)\s+" } |
+            ForEach-Object { $matches[1] } |
+            Where-Object { $_ -ne "Engine" }
+        )
+    }
+
+    if ($engineIds.Count -eq 0) {
+        throw "ScummVM parte correttamente, ma non restituisce una lista engine verificabile."
+    }
+
     foreach ($requiredEngine in @("made","scumm","sci","ags","grim")) {
-        if ($engineText -notmatch ("(?im)\b" + [regex]::Escape($requiredEngine) + "\b")) {
+        if ($engineIds -notcontains $requiredEngine) {
             throw "La build completa non espone l'engine atteso: $requiredEngine"
         }
     }
-    $engineCount = @($engines | Where-Object { $_ -match "^\s*[A-Za-z0-9_+-]+\s+" }).Count
+
+    $engineCount = @($engineIds | Sort-Object -Unique).Count
     Write-Host "Engine rilevati : $engineCount" -ForegroundColor Green
+    if ($engineListExitCode -ne 0) {
+        Write-Host "Nota: --list-engines-json ha restituito codice $engineListExitCode, ma il payload engine e' valido." -ForegroundColor Yellow
+    }
     if ($engineCount -lt 50) {
         throw "Numero engine troppo basso ($engineCount): la build sembra ancora parziale."
     }
