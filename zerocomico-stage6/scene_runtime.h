@@ -41,9 +41,6 @@ struct SceneObjectState {
 	}
 };
 
-/**
- * Stable name/id registry shared by the renderer, picker and script VM.
- */
 class SceneRegistry {
 public:
 	void clear();
@@ -65,12 +62,6 @@ private:
 	Common::Array<Common::String> _names;
 };
 
-/**
- * Concrete ScriptRuntimeHost for Stage 6.
- *
- * The Stage 4 ANJ decoder fills AnimationClip objects; the Stage 5 renderer
- * reads current transforms and visibility from SceneRegistry.
- */
 class SceneRuntime : public ScriptRuntimeHost {
 public:
 	SceneRuntime();
@@ -82,14 +73,16 @@ public:
 	void update(uint32 deltaMillis);
 
 	const Common::String &focusCamera() const { return _focusCamera; }
+	Common::String activeAnimationName() const;
 
 	bool hasPendingMainPlace() const { return !_pendingMainPlace.empty(); }
 	Common::String consumePendingMainPlace();
 
-	// ScriptRuntimeHost
 	void setObjectVisible(const Common::String &objectName, bool visible) override;
 	bool playAnimation(const Common::String &animationName, bool loop) override;
 	bool isAnimationPlaying() const override;
+	bool isAnimationPlaying(const Common::String &animationName) const override;
+	void stopAnimation(const Common::String &animationName) override;
 	void setFocus(const Common::String &cameraName) override;
 	void requestMainPlace(const Common::String &mainPlaceName) override;
 
