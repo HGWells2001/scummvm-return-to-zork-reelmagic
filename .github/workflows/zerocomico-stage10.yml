@@ -28,7 +28,7 @@ jobs:
         run: |
           set -euxo pipefail
           cd _upstream_scummvm
-          ./configure --disable-all-engines --disable-detection-full --disable-translation --disable-debug --disable-werror
+          ./configure --disable-all-engines --disable-detection-full --disable-translation --disable-debug
           make -j2 common/libcommon.a
 
       - name: Link and run Stage 10 focused self-test
