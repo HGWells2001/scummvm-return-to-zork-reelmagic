@@ -5,6 +5,19 @@ JapoTek model and animation data that can be consumed by the renderer.
 
 Branch: `scratch/zerocomico-stage9`.
 
+## Native resource decode
+
+Stage 9 also restores the Stage 1 resource path directly on the GitHub branch:
+
+- JFX1 header validation;
+- JGF5 header validation;
+- Haruhiko Okumura LZHUF decode (4096-byte LZSS ring + adaptive Huffman);
+- typed JGF5 BGRA image output.
+
+`ActorModelLoader::loadPacked()` can therefore open the exact packed
+`Giovanni.p3d` and `Giovanni.anj` bytes from disc without requiring an
+external pre-decoder.
+
 ## P3D model loader
 
 `P3DModelParser` implements the layouts recovered in Stages 3 and 4:
@@ -118,6 +131,13 @@ SequenceTable and contains the tokens `fromseq`, `start`, `endseq` /
 repository does not contain the decoded `.seq` bodies. Stage 9 therefore
 does **not** guess that grammar.
 
+## Actor textures
+
+`ActorTextureSet` resolves F000 texture resources relative to the actor model
+directory and decodes the JGF5 payload into BGRA pixels. Missing texture
+references are recorded but are not fatal, matching the fact that the retail
+disc itself contains a small number of dangling model texture references.
+
 ## Renderer handoff
 
 `ActorRenderCatalog` converts classic F003 meshes into render batches:
@@ -146,8 +166,12 @@ headers with:
 covers the intended path:
 
 ```
-P3D -> ANJ F044/F007 -> target resolver -> TCB keys
-    -> AnimationClip -> render catalog
+JFX1 -> LZHUF -> P3D
+JFX1 -> LZHUF -> ANJ F044/F007
+                  -> target resolver -> TCB keys
+                  -> AnimationClip
+P3D F000 -> JGF5 -> LZHUF -> BGRA texture
+P3D F003 -> render catalog
 ```
 
 ## Next boundary
