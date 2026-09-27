@@ -11,6 +11,8 @@ void ActorModel::clear() {
 	assets = SharedActorAssets();
 	model.clear();
 	animationDocument.clear();
+	animationClips.clear();
+	animationStats = ANJDecodeStats();
 }
 
 bool ActorModelLoader::load(const SharedActorAssets &assets,
@@ -49,10 +51,18 @@ bool ActorModelLoader::load(const SharedActorAssets &assets,
 	if (!anjParser.parse(anjBytes, parsedAnimation, errorMessage))
 		return false;
 
+	Common::Array<AnimationClip> clips;
+	ANJDecodeStats stats;
+	ANJTrackDecoder trackDecoder;
+	if (!trackDecoder.decode(parsedModel, parsedAnimation, clips, stats, errorMessage))
+		return false;
+
 	ActorModel prepared;
 	prepared.assets = assets;
 	prepared.model = parsedModel;
 	prepared.animationDocument = parsedAnimation;
+	prepared.animationClips = clips;
+	prepared.animationStats = stats;
 
 	out = prepared;
 	return true;
