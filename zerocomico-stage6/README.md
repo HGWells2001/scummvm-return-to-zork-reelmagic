@@ -2,84 +2,86 @@
 
 Stage 6 turns the Stage 5 rendered main menu into an interactive runtime layer.
 
-This directory is intentionally isolated from the Return to Zork work in this
-repository. It is a scratch workspace while the normal local container runtime
-is unavailable. The repository's `main` branch is not changed.
+This directory is isolated on the scratch branch `scratch/zerocomico-stage6`.
+The Return to Zork repository's `main` branch is untouched.
 
-## Implemented in this stage
+## Implemented
 
-### Pixel-accurate scene picking
+### Pixel-accurate picking
 
-`ScenePicker` adds an integer object-id buffer beside the renderer's depth
-buffer. Whenever a triangle fragment wins the normal depth test, the renderer
-writes the stable scene-registry id to the same pixel.
+`ScenePicker` keeps an object-id buffer paired with the renderer's z-buffer.
+When a fragment wins the depth test, its stable scene-object id is stored at the
+same pixel. Mouse selection therefore resolves the actually visible mesh, not a
+hand-authored rectangle.
 
-This means menu clicks are resolved against the surface that is actually
-visible at the mouse pixel. No 2D hand-authored rectangles and no approximate
-screen-space bounding boxes are required.
+### Mouse and menu hover
 
-### ScummVM mouse bridge
+`MenuInput` handles ScummVM mouse move/down/up events and latches a click only
+when press and release hit the same object.
 
-`MenuInput` consumes:
-
-- `EVENT_MOUSEMOVE`
-- `EVENT_LBUTTONDOWN`
-- `EVENT_LBUTTONUP`
-
-A click is latched only when press and release resolve to the same scene
-object. The selected object name is then available to the script VM.
-
-### Original `ifobjselected` shape
-
-The sibling Lucifer-engine game Blood & Lace proves the original statement is
-two-argument:
-
-```
-ifobjselected <owner/context> <object>
-```
-
-Stage 6 therefore exposes both the compatibility one-argument helper and the
-faithful two-argument form. The context is preserved in the API; current menu
-selection uses the second argument, the actual selected scene object.
-
-### Menu hover from original assets
-
-The retail menu stores button states as paired resources:
+The retail menu contains paired button textures:
 
 ```
 *_spe.tga   // spento
 *_acc.tga   // acceso
 ```
 
-Stage 6 derives these names generically. It does not hard-code NUOVO, CARICA,
-SALVA, AIUTI, CREDITS, CONTINUA or ABBANDONA.
+`MenuController` and `MenuMaterialState` switch these original resources on
+hover without hard-coding the seven button names.
 
-`MenuController` switches only the hovered object's texture override and
-restores the previous object. `MenuMaterialState` provides the small material
-API needed by the Stage 5 renderer.
+### Original Lucifer VM verbs recovered
 
-### TCB animation runtime
+The shipped `Zero Comico.exe` command table exposes the exact runtime names
+used by this engine, including:
 
-The ANJ data decoded in Stage 4 is now consumable at runtime:
+```
+setfocus
+E3D_hide
+E3D_unhide
+ifobjselected
+play_open_cut
+play_cut
+loop_cut
+wait_cut
+stop_cut
+if_cutisfinished
+ChangeMainplace
+ChangeMainplaceTTable
+SaveMainplace
+RestoreMainplace
+GetSavedMainplace
+```
 
-- Kochanek-Bartels TCB interpolation for vec3 translation;
-- Kochanek-Bartels TCB interpolation for vec3 scale;
+The sibling Lucifer-engine title Blood & Lace proves `ifobjselected` has the
+two-argument shape:
+
+```
+ifobjselected <owner/context> <object>
+```
+
+`ScriptBridge` and `script_opcodes.*` now expose/dispatch the relevant Stage
+6 subset with these original names. The Stage 3 VM can pass its already
+tokenized opcode and arguments directly to this adapter.
+
+### ANJ animation runtime
+
+The ANJ data decoded in Stage 4 can now run at runtime:
+
+- Kochanek-Bartels TCB interpolation for translation and scale;
 - axis-angle to quaternion conversion;
-- quaternion slerp between rotational keys;
+- quaternion slerp between rotation keys;
 - visibility-key evaluation;
-- named animation clips and per-object tracks;
-- looped and one-shot playback.
+- named one-shot and looping clips;
+- named cut-state queries for `wait_cut` and `if_cutisfinished`.
 
-The rotation path is deliberately marked as an approximation at one precise
-point: the retail engine's exact quaternion TCB/squad tangent construction has
-not yet been recovered from japotek3d.dll. The public API is shaped so the
-exact evaluator can replace slerp later without changing call sites.
+The exact retail quaternion-TCB/squad tangent construction is still a fidelity
+task. Rotation currently uses slerp at the one documented substitution point.
 
 ### Stable scene registry
 
 `SceneRegistry` owns transformable scene objects by stable name/id. Materials
-are deliberately excluded from this registry because Stage 5 proved that F000
-materials and F003 meshes can share the same name.
+remain separate because Stage 5 proved an F000 material and an F003 mesh may
+share the same name.
 
 `SceneRuntime` combines:
 
@@ -87,31 +89,24 @@ materials and F003 meshes can share the same name.
 - base transforms;
 - evaluated ANJ transforms;
 - active focus camera;
-- named animation playback;
-- deferred MainPlace transition requests.
+- active named cut;
+- deferred MainPlace requests.
 
-### MainPlace transition infrastructure
+### Transactional MainPlace transition
 
-`parseMainPlaceDescriptor()` reads the already-decoded `gameplay/room.isc`
-structure and extracts:
+`ChangeMainplace Mp1` is now represented by the real VM verb, not a made-up
+engine API.
 
-- `ge_MainPlace`
-- `StartPlace:`
-- declared `Room` entries
+`MainPlaceTransitionController` performs the transition at a safe point:
 
-The same mechanism is intended for Mp1 through Mp5 instead of hard-coding room
-names.
+1. keep the current scene alive;
+2. read/decode the requested `MpN/gameplay/room.isc`;
+3. parse `ge_MainPlace`, `StartPlace:` and all declared `Room` entries;
+4. reject a mismatched/invalid target before touching the current scene;
+5. ask the engine host to prepare and atomically activate the target;
+6. clear the pending transition only after success.
 
-A requested transition is deferred until a safe point in the engine loop. The
-next integration step is therefore:
-
-1. VM requests MainPlace change;
-2. current frame finishes;
-3. runtime unloads current scene;
-4. decode target `room.isc` and `scene.isc`;
-5. parse MainPlace descriptor;
-6. load its declared StartPlace;
-7. build the new scene registry.
+The same mechanism applies to Mp1 through Mp5.
 
 ## Stage 5 integration points
 
@@ -123,42 +118,37 @@ At framebuffer creation:
 picker.resize(640, 480);
 ```
 
-At the beginning of each rendered frame:
+At frame start:
 
 ```cpp
 picker.clear();
 ```
 
-When a rasterized fragment wins the normal z-test:
+Whenever a rasterized fragment wins the Stage 5 z-test:
 
 ```cpp
 picker.writePixel(x, y, depth, sceneObjectId);
 ```
 
-The same stable `sceneObjectId` must identify that P3D mesh in
-`SceneRegistry`.
+### Texture lookup
 
-### Renderer texture lookup
-
-Bind the mesh/object to its normal material texture once:
+Bind the base material texture once:
 
 ```cpp
 menuMaterials.bindObjectTexture(meshName, materialTexture);
 ```
 
-For actual rendering, ask:
+Render using:
 
 ```cpp
 menuMaterials.effectiveTexture(meshName)
 ```
 
-instead of reading the base texture directly. Non-menu objects simply have no
-override and therefore render normally.
+so an original `*_acc.tga` hover override can be temporary.
 
-### Input loop
+### Event loop
 
-Feed ScummVM events after the pick buffer represents the currently displayed
-frame:
+After the pick buffer represents the displayed frame:
 
 ```cpp
 menuController.handleEvent(event, picker);
@@ -166,58 +156,73 @@ menuController.handleEvent(event, picker);
 
 ### Script VM
 
-The existing Stage 3 VM should route the corresponding original verbs through
-`ScriptBridge`:
+Route statements/conditions through `script_opcodes.*` first. A returned
+`kStage6OpcodeUnhandled` falls back to the existing Stage 3 VM.
+
+Important mappings already implemented:
 
 ```
+E3D_hide object
+E3D_unhide object
+setfocus camera
+play_open_cut name
+play_cut name
+loop_cut name
+wait_cut name
+stop_cut name
+ChangeMainplace Mp1
 ifobjselected owner object
-e3d_Hide object
-e3d_UnHide object
-SetFocus camera
-<animation-start verb>
-<animation-wait verb>
-<MainPlace-transition verb>
+if_cutisfinished name
 ```
 
-The exact spelling/argument shape of the last three menu statements must come
-from the retail `Mpx/Interface.isc` rather than being invented.
+`wait_cut` returns a yield result while the named cut is active.
 
-## Focused self-test
+## Validation
 
-`stage6_selftest.cpp` covers:
+The branch CI clones current ScummVM and syntax-checks every Stage 6 C++ source
+with:
 
-- depth/id replacement in `ScenePicker`;
-- press+release selection on the same mesh;
-- a simple TCB interpolation midpoint;
+```
+-std=c++17 -Wall -Wextra -Werror
+```
+
+The current Stage 6 head is green.
+
+`stage6_selftest.cpp` additionally describes regression checks for:
+
+- z/id picking precedence;
+- press/release selection on the same mesh;
+- TCB interpolation;
+- named `play_cut CLICK` / `wait_cut CLICK`;
 - MainPlace descriptor parsing;
-- script visibility and deferred MainPlace requests.
+- the exact logical path
+  `ChangeMainplace Mp1 -> parse StartPlace -> activate Mp1`.
 
-A branch-only GitHub Actions job also syntax-checks every Stage 6 C++ source
-against the current ScummVM headers with `-Wall -Wextra -Werror`.
+GitHub Actions also builds a downloadable source ZIP artifact after successful
+validation.
 
 ## Known boundaries
 
-1. **Retail `Interface.isc` opcode spelling**
-   - The Stage 5 archive contains the original decoded-data work, but the local
-     archive runtime is currently unavailable.
-   - Public documentation does not publish the full file.
-   - Therefore Stage 6 does not fabricate the exact animation/transition
-     statement syntax.
+1. **Full retail `Mpx/gameplay/Interface.isc` contents**
+   - The exact command vocabulary is now recovered from the executable.
+   - The complete menu script is still needed to preserve the exact order in
+     which `CLICK`, `SARACSU`, `SARACGIU`, `MAINESCE`, `MAINENTR` and
+     other cuts are invoked by each button.
+   - No guessed button sequence is hard-coded.
 
 2. **Exact rotational TCB**
-   - Vec3 TCB is implemented.
-   - Rotations currently interpolate key quaternions with slerp.
-   - Recovering the original quaternion tangent construction remains a fidelity
-     task.
+   - vec3 TCB is implemented.
+   - rotation uses slerp until the DLL's quaternion tangent construction is
+     recovered.
 
 3. **ANJ special light channel `0x0E3D`**
-   - Stage 5 resolves 261/263 P3D/ANJ pairs completely.
-   - `c476.anj` and `c478.anj` share this remaining special case.
+   - Stage 5 resolves 261/263 P3D/ANJ pairs completely;
+   - `c476.anj` and `c478.anj` retain this special case.
 
 4. **Full Mp1 gameplay**
-   - Stage 6 provides the safe transition machinery.
-   - Loading and executing the complete Mp1 room/character/puzzle script set is
-     the next milestone after the exact menu transition statement is recovered.
+   - the safe Mp0 -> Mp1 transition path now exists;
+   - the next major milestone is loading the complete Mp1 room, character,
+     navigation and puzzle runtime after transition.
 
 ## Files
 
@@ -227,9 +232,10 @@ against the current ScummVM headers with `-Wall -Wextra -Werror`.
 - `menu_controller.*` - hover controller
 - `menu_material_state.*` - transient material overrides
 - `timeline_eval.*` - TCB/slerp evaluation
-- `animation_player.*` - named ANJ clip playback
+- `animation_player.*` - named ANJ playback
 - `scene_runtime.*` - registry and runtime state
 - `script_bridge.*` - VM/runtime boundary
-- `mainplace.*` - data-driven MainPlace descriptor parsing
+- `script_opcodes.*` - recovered Lucifer opcode adapter
+- `mainplace.*` - data-driven MainPlace descriptor parser
+- `mainplace_transition.*` - safe deferred MainPlace activation
 - `stage6_selftest.cpp` - focused regression checks
-
