@@ -153,9 +153,13 @@ void SceneRuntime::requestMainPlace(const Common::String &mainPlaceName) {
 	_pendingMainPlace = normalizeMainPlaceName(mainPlaceName);
 }
 
+void SceneRuntime::clearPendingMainPlace() {
+	_pendingMainPlace.clear();
+}
+
 Common::String SceneRuntime::consumePendingMainPlace() {
 	Common::String result = _pendingMainPlace;
-	_pendingMainPlace.clear();
+	clearPendingMainPlace();
 	return result;
 }
 
