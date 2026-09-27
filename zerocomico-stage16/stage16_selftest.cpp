@@ -46,7 +46,7 @@ static void testShapeParser() {
 	assert(shapes.shapes().size() == 2);
 	assert(shapes.vectors().size() == 1);
 
-	const ShapeDefinition *pos = shapes.shape("r12POS");
+	const ShapeDefinition *pos = shapes.shape("R12_START_PACMAN");
 	assert(pos);
 	assert(pos->kind == kShapeDefinitionPosition);
 
