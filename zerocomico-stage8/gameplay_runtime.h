@@ -19,9 +19,15 @@
 
 namespace ZeroComico {
 
-class GameplayRuntimeHost {
+class GameplayRuntimeHost : public ObjectHandlerExternalOpcodeHost {
 public:
 	virtual ~GameplayRuntimeHost() {}
+
+	ObjectHandlerExternalOpcodeResult executeObjectHandlerOpcode(
+		const Common::String &,
+		const Common::Array<Common::String> &) override {
+		return kObjectHandlerExternalUnhandled;
+	}
 
 	virtual bool loadSharedActor(const SharedActorAssets &assets) = 0;
 
