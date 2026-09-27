@@ -1,0 +1,40 @@
+name: zerocomico-report-stage13
+
+on:
+  push:
+    branches:
+      - scratch/zerocomico-report-stage13
+  workflow_dispatch:
+
+jobs:
+  package-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate provenance and checksums
+        run: |
+          set -euxo pipefail
+          {
+            echo "Zero Comico / ScummVM - Report package provenance"
+            echo "Generated: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "Report branch: ${GITHUB_REF_NAME}"
+            echo "Report commit: ${GITHUB_SHA}"
+            echo
+            echo "Recent commits:"
+            git log --oneline -30
+          } > project-report/BUILD_PROVENANCE.txt
+
+          find project-report                zerocomico-stage6 zerocomico-stage7 zerocomico-stage8                zerocomico-stage9 zerocomico-stage10 zerocomico-stage11                zerocomico-stage12 zerocomico-stage13                -type f -print0 | sort -z | xargs -0 sha256sum                > project-report/SHA256SUMS.txt
+
+      - name: Build complete report ZIP
+        run: |
+          set -euxo pipefail
+          zip -r ZeroComico_Relazione_Completa_Stage13.zip             project-report             zerocomico-stage6 zerocomico-stage7 zerocomico-stage8             zerocomico-stage9 zerocomico-stage10 zerocomico-stage11             zerocomico-stage12 zerocomico-stage13             .github/workflows/zerocomico-stage6.yml             .github/workflows/zerocomico-stage7.yml             .github/workflows/zerocomico-stage8.yml             .github/workflows/zerocomico-stage9.yml             .github/workflows/zerocomico-stage10.yml             .github/workflows/zerocomico-stage11.yml             .github/workflows/zerocomico-stage12.yml             .github/workflows/zerocomico-stage13.yml
+
+      - name: Upload complete report package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZeroComico_Relazione_Completa_Stage13
+          path: ZeroComico_Relazione_Completa_Stage13.zip
+          if-no-files-found: error
