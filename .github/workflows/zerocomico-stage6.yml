@@ -1,0 +1,28 @@
+name: zerocomico-stage6-compile
+
+on:
+  push:
+    branches:
+      - scratch/zerocomico-stage6
+  workflow_dispatch:
+
+jobs:
+  syntax-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch current ScummVM headers
+        run: |
+          git clone --depth 1 https://github.com/scummvm/scummvm.git _upstream_scummvm
+
+      - name: Syntax-check Stage 6 C++
+        run: |
+          set -euxo pipefail
+          for src in zerocomico-stage6/*.cpp; do
+            echo "Checking $src"
+            g++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
+              -I"$GITHUB_WORKSPACE/_upstream_scummvm" \
+              -I"$GITHUB_WORKSPACE" \
+              "$src"
+          done
