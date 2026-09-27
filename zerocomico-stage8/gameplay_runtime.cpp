@@ -24,7 +24,8 @@ GameplayRuntime::GameplayRuntime() :
 	_host(nullptr),
 	_bridge(nullptr),
 	_hasActorPosition(false),
-	_walkingForInteraction(false) {
+	_walkingForInteraction(false),
+	_walkSpeed(0.0f) {
 }
 
 void GameplayRuntime::clear() {
@@ -43,6 +44,7 @@ void GameplayRuntime::clear() {
 	_actorPosition = NavVec2();
 	_hasActorPosition = false;
 	_walkingForInteraction = false;
+	_walkSpeed = 0.0f;
 }
 
 bool GameplayRuntime::prepare(GameplayMainPlaceState *state,
@@ -89,11 +91,9 @@ bool GameplayRuntime::beginPath(const NavVec2 &goal) {
 	if (!_state || !_host || !_hasActorPosition)
 		return false;
 
-	// Walking speed remains an engine-side tuning input in later integration.
-	// One engine unit per millisecond is only a neutral runtime scale here;
-	// path geometry and destination remain entirely retail-data driven.
-	const float kRuntimeUnitsPerSecond = 1000.0f;
-	if (!_path.begin(_state->navigation, _actorPosition, goal, kRuntimeUnitsPerSecond))
+	if (_walkSpeed <= 0.0f)
+		return false;
+	if (!_path.begin(_state->navigation, _actorPosition, goal, _walkSpeed))
 		return false;
 
 	_host->setActorWalking(_actorAssets.name, true);
@@ -133,9 +133,8 @@ bool GameplayRuntime::resolveObjectGoal(const Common::String &entityName,
 		return true;
 	}
 
-	const float stopDistance = range * 0.9f;
-	goal.x = target.x + dx * (stopDistance / length);
-	goal.y = target.y + dy * (stopDistance / length);
+	goal.x = target.x + dx * (range / length);
+	goal.y = target.y + dy * (range / length);
 	return true;
 }
 
