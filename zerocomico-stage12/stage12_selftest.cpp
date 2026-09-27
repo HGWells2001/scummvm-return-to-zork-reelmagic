@@ -68,7 +68,7 @@ static void testWorldSpaceFrame() {
 	assert(catalog.batches().size() == 1);
 
 	SceneRegistry registry;
-	registerActorSceneObjects(actor, registry);
+	registry.addObject("gio_body", kSceneObjectMesh);
 	const int32 bodyId = registry.findObject("gio_body");
 	SceneObjectState *body = registry.object(bodyId);
 	assert(body);
@@ -122,7 +122,7 @@ static void testVisibility() {
 	assert(catalog.build(actor, error));
 
 	SceneRegistry registry;
-	registerActorSceneObjects(actor, registry);
+	registry.addObject("gio_body", kSceneObjectMesh);
 	registry.setVisible("gio_body", false);
 
 	TransformSample root;
@@ -150,7 +150,7 @@ static void testMalformedUvTableRejected() {
 	assert(catalog.build(actor, error));
 
 	SceneRegistry registry;
-	registerActorSceneObjects(actor, registry);
+	registry.addObject("gio_body", kSceneObjectMesh);
 
 	TransformSample root;
 	ActorRenderFrame frame;
