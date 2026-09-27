@@ -39,7 +39,7 @@ jobs:
       - name: Link and run Stage 11 focused self-test
         run: |
           set -euxo pipefail
-          g++ -std=c++17 -Wall -Wextra -DHAVE_CONFIG_H             -I"$GITHUB_WORKSPACE/_upstream_scummvm"             -I"$GITHUB_WORKSPACE"             zerocomico-stage6/mainplace.cpp             zerocomico-stage6/timeline_eval.cpp             zerocomico-stage6/animation_player.cpp             zerocomico-stage6/scene_runtime.cpp             zerocomico-stage9/actor_animation_runtime.cpp             zerocomico-stage11/actor_motion_controller.cpp             zerocomico-stage11/stage11_selftest.cpp             _upstream_scummvm/common/libcommon.a             -pthread -ldl -lm             -o stage11_selftest
+          g++ -std=c++17 -Wall -Wextra -DHAVE_CONFIG_H             -I"$GITHUB_WORKSPACE/_upstream_scummvm"             -I"$GITHUB_WORKSPACE"             zerocomico-stage6/mainplace.cpp             zerocomico-stage6/timeline_eval.cpp             zerocomico-stage6/animation_player.cpp             zerocomico-stage6/scene_runtime.cpp             zerocomico-stage9/actor_animation_runtime.cpp             zerocomico-stage9/anj_tracks.cpp             zerocomico-stage11/actor_motion_controller.cpp             zerocomico-stage11/stage11_selftest.cpp             _upstream_scummvm/common/libcommon.a             -pthread -ldl -lm             -o stage11_selftest
           ./stage11_selftest
 
       - name: Package Stage 11 modules
