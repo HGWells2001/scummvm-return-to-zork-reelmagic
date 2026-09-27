@@ -3,6 +3,8 @@
  * Experimental Zero Comico engine work.
  */
 
+#include <cstdio>
+
 #include "zerocomico-stage7/gameplay_object.h"
 
 #include "common/tokenizer.h"
@@ -25,7 +27,7 @@ static Common::String normalizeToken(Common::String value) {
 }
 
 static bool parseFloatToken(const Common::String &value, float &out) {
-	return std::sscanf(value.c_str(), "%f", &out) == 1;
+	return sscanf(value.c_str(), "%f", &out) == 1;
 }
 
 static bool parseFlagValue(const Common::String &value) {
