@@ -11,7 +11,7 @@
 
 #include "common/array.h"
 #include "common/events.h"
-#include "common/point.h"
+#include "common/rect.h"
 #include "common/str.h"
 
 namespace ZeroComico {
@@ -41,9 +41,6 @@ public:
 	bool isHovered(const Common::String &name) const;
 	bool isActivated(const Common::String &name) const;
 
-	/**
-	 * Return the last clicked object and clear the click latch.
-	 */
 	Common::String consumeActivatedObject();
 
 	const Common::Point &mousePos() const { return _mousePos; }
