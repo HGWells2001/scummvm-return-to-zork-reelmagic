@@ -1,0 +1,55 @@
+name: zerocomico-stage16-compile
+
+on:
+  push:
+    branches:
+      - scratch/zerocomico-stage16
+  workflow_dispatch:
+
+jobs:
+  syntax-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch current ScummVM headers
+        run: |
+          git clone --depth 1 https://github.com/scummvm/scummvm.git _upstream_scummvm
+
+      - name: Syntax-check Stage 6 through Stage 16 C++
+        run: |
+          set -euxo pipefail
+          for src in zerocomico-stage6/*.cpp zerocomico-stage7/*.cpp zerocomico-stage8/*.cpp zerocomico-stage9/*.cpp zerocomico-stage10/*.cpp zerocomico-stage11/*.cpp zerocomico-stage12/*.cpp zerocomico-stage13/*.cpp zerocomico-stage14/*.cpp zerocomico-stage15/*.cpp zerocomico-stage16/*.cpp; do
+            echo "Checking $src"
+            g++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only               -D__MINGW32__               -I"$GITHUB_WORKSPACE/_upstream_scummvm"               -I"$GITHUB_WORKSPACE"               "$src"
+          done
+
+      - name: Install ScummVM build dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-dev
+
+      - name: Build ScummVM common library
+        run: |
+          set -euxo pipefail
+          cd _upstream_scummvm
+          ./configure --disable-all-engines --disable-detection-full --disable-translation --disable-debug
+          make -j2 common/libcommon.a
+
+      - name: Link and run Stage 16 focused self-test
+        run: |
+          set -euxo pipefail
+          g++ -std=c++17 -Wall -Wextra -DHAVE_CONFIG_H             -I"$GITHUB_WORKSPACE/_upstream_scummvm"             -I"$GITHUB_WORKSPACE"             zerocomico-stage6/mainplace.cpp             zerocomico-stage7/gameplay_room.cpp             zerocomico-stage14/character_animset.cpp             zerocomico-stage16/shape_document.cpp             zerocomico-stage16/character_start_shape.cpp             zerocomico-stage16/character_start_binding.cpp             zerocomico-stage16/stage16_selftest.cpp             _upstream_scummvm/common/libcommon.a             -pthread -ldl -lm             -o stage16_selftest
+          ./stage16_selftest
+
+      - name: Package Stage 16 modules
+        run: |
+          set -euxo pipefail
+          zip -r ZeroComico_ScummVM_Stage16_modules.zip             zerocomico-stage6 zerocomico-stage7 zerocomico-stage8             zerocomico-stage9 zerocomico-stage10 zerocomico-stage11             zerocomico-stage12 zerocomico-stage13 zerocomico-stage14             zerocomico-stage15 zerocomico-stage16
+
+      - name: Upload Stage 16 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZeroComico_ScummVM_Stage16_modules
+          path: ZeroComico_ScummVM_Stage16_modules.zip
+          if-no-files-found: error
