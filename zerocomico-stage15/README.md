@@ -78,6 +78,27 @@ from the engine and substitutes it only when the dialogue speaker is literally
 It does not attempt to infer which protagonist is active from subtitle colour
 or other heuristics.
 
+## Speech-aware dialogue presentation
+
+`SpeechAwareDialoguePresentation` decorates the Stage 10 text dialogue
+presentation.
+
+For each spoken node it asks a `DialogueSpeechIndexProvider` for an explicit
+retail index using:
+
+- MainPlace;
+- dialog name;
+- node index;
+- speaker;
+- subtitle text.
+
+Only when that provider returns an index does Stage 15 resolve and play the
+matching retail MP3. Otherwise the subtitle is shown normally and no audio
+counter is advanced.
+
+This keeps the audio layer ready for a future decoded SpeechTracer map without
+baking in a guessed enumeration scheme.
+
 ## Deliberate boundary: line -> index
 
 Stage 15 does **not** increment a per-speaker counter merely because a
@@ -107,7 +128,14 @@ The Stage 15 focused self-test uses actual retail filenames from Mp1 and checks:
 - deduplication across casing variants;
 - the real Mp1 1/6/3 speech counts;
 - explicit Giovanni index resolution;
-- `MainPlayer -> Giovanni` aliasing only when provided.
+- `MainPlayer -> Giovanni` aliasing only when provided;
+- Stage 10 dialogue integration;
+- explicit-index MP3 playback;
+- a following text-only line does not consume or infer a speech index.
+
+The previous divergent Stage 15 branch is preserved as
+`scratch/zerocomico-stage15-legacy`; the active Stage 15 is based on the
+latest green Stage 14 line.
 
 CI syntax-checks Stages 6 through 15 with `-Werror`, builds ScummVM's real
 `libcommon`, executes the speech catalog test and packages all modules.
