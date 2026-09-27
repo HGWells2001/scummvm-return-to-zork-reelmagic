@@ -59,6 +59,7 @@ ObjectHandlerVM::ObjectHandlerVM() :
 	_variables(nullptr),
 	_bridge(nullptr),
 	_host(nullptr),
+	_externalOpcodeHost(nullptr),
 	_pc(0) {
 }
 
@@ -67,6 +68,7 @@ void ObjectHandlerVM::clear() {
 	_variables = nullptr;
 	_bridge = nullptr;
 	_host = nullptr;
+	_externalOpcodeHost = nullptr;
 	_pc = 0;
 	_conditions.clear();
 	_blockedOpcode.clear();
@@ -75,12 +77,14 @@ void ObjectHandlerVM::clear() {
 void ObjectHandlerVM::begin(const ObjectHandlerBody *body,
                             GameplayVariables *variables,
                             ScriptBridge *bridge,
-                            GameplayHandlerHost *host) {
+                            GameplayHandlerHost *host,
+                            ObjectHandlerExternalOpcodeHost *externalOpcodeHost) {
 	clear();
 	_body = body;
 	_variables = variables;
 	_bridge = bridge;
 	_host = host;
+	_externalOpcodeHost = externalOpcodeHost;
 }
 
 bool ObjectHandlerVM::executionEnabled() const {
@@ -186,6 +190,19 @@ ObjectHandlerVmResult ObjectHandlerVM::executeLine(const Common::String &line,
 			return kObjectHandlerVmYield;
 		}
 		if (stage6 == kStage6OpcodeBadArguments)
+			return kObjectHandlerVmBadArguments;
+	}
+
+	if (_externalOpcodeHost) {
+		const ObjectHandlerExternalOpcodeResult external =
+			_externalOpcodeHost->executeObjectHandlerOpcode(opcode, args);
+		if (external == kObjectHandlerExternalDone)
+			return kObjectHandlerVmRunning;
+		if (external == kObjectHandlerExternalYield) {
+			advance = false;
+			return kObjectHandlerVmYield;
+		}
+		if (external == kObjectHandlerExternalBadArguments)
 			return kObjectHandlerVmBadArguments;
 	}
 
