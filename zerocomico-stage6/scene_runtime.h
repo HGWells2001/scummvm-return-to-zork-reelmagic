@@ -76,6 +76,8 @@ public:
 	Common::String activeAnimationName() const;
 
 	bool hasPendingMainPlace() const { return !_pendingMainPlace.empty(); }
+	const Common::String &pendingMainPlace() const { return _pendingMainPlace; }
+	void clearPendingMainPlace();
 	Common::String consumePendingMainPlace();
 
 	void setObjectVisible(const Common::String &objectName, bool visible) override;
