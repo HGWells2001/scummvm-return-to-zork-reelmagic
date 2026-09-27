@@ -18,9 +18,6 @@ void SceneRegistry::clear() {
 
 int32 SceneRegistry::addObject(const Common::String &name, SceneObjectType type,
                                const TransformSample &base) {
-	// Runtime registry intentionally contains only transformable scene objects.
-	// Materials are kept in the renderer/material table, avoiding the F000/F003
-	// same-name ambiguity found during Stage 5.
 	const int32 existing = findObject(name);
 	if (existing >= 0)
 		return existing;
@@ -128,6 +125,24 @@ bool SceneRuntime::playAnimation(const Common::String &animationName, bool loop)
 
 bool SceneRuntime::isAnimationPlaying() const {
 	return _player.isPlaying();
+}
+
+bool SceneRuntime::isAnimationPlaying(const Common::String &animationName) const {
+	if (!_player.isPlaying() || !_player.clip())
+		return false;
+	return _player.clip()->name.equalsIgnoreCase(animationName);
+}
+
+void SceneRuntime::stopAnimation(const Common::String &animationName) {
+	if (!_player.clip())
+		return;
+
+	if (animationName.empty() || _player.clip()->name.equalsIgnoreCase(animationName))
+		_player.stop();
+}
+
+Common::String SceneRuntime::activeAnimationName() const {
+	return _player.clip() ? _player.clip()->name : Common::String();
 }
 
 void SceneRuntime::setFocus(const Common::String &cameraName) {
