@@ -192,7 +192,7 @@ bool GameplayRuntime::executeObjectHandler(const Common::String &objectName,
 		return false;
 	}
 
-	_handlerVm.begin(body, &_variables, _bridge, this);
+	_handlerVm.begin(body, &_variables, _bridge, this, _host);
 	return true;
 }
 
