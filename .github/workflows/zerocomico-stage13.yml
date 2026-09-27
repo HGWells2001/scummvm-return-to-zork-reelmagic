@@ -39,7 +39,7 @@ jobs:
       - name: Link and run Stage 13 focused self-test
         run: |
           set -euxo pipefail
-          g++ -std=c++17 -Wall -Wextra -DHAVE_CONFIG_H             -I"$GITHUB_WORKSPACE/_upstream_scummvm"             -I"$GITHUB_WORKSPACE"             zerocomico-stage13/sequence_table.cpp             zerocomico-stage13/stage13_selftest.cpp             _upstream_scummvm/common/libcommon.a             -pthread -ldl -lm             -o stage13_selftest
+          g++ -std=c++17 -Wall -Wextra -DHAVE_CONFIG_H             -I"$GITHUB_WORKSPACE/_upstream_scummvm"             -I"$GITHUB_WORKSPACE"             zerocomico-stage9/resource_decoder.cpp             zerocomico-stage13/sequence_table.cpp             zerocomico-stage13/actor_sequence_table.cpp             zerocomico-stage13/stage13_selftest.cpp             _upstream_scummvm/common/libcommon.a             -pthread -ldl -lm             -o stage13_selftest
           ./stage13_selftest
 
       - name: Package Stage 13 modules
