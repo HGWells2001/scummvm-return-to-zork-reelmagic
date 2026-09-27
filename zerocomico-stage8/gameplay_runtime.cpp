@@ -3,9 +3,9 @@
  * Experimental Zero Comico engine work.
  */
 
-#include "zerocomico-stage8/gameplay_runtime.h"
-
 #include <cmath>
+
+#include "zerocomico-stage8/gameplay_runtime.h"
 
 namespace ZeroComico {
 
