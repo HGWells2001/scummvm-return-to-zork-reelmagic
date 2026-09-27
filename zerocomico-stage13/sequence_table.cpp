@@ -3,8 +3,6 @@
  * Experimental Zero Comico engine work.
  */
 
-#include "common/tokenizer.h"
-
 #include "zerocomico-stage13/sequence_table.h"
 
 namespace ZeroComico {
@@ -200,12 +198,18 @@ bool SequenceTableForensicParser::parse(const Common::String &decodedText,
 		return false;
 	}
 
-	Common::StringTokenizer lines(decodedText, "\r\n");
-	uint32 lineNumber = 0;
+	uint32 lineNumber = 1;
+	uint32 lineStart = 0;
 
-	while (!lines.empty()) {
-		Common::String raw = lines.nextToken();
-		++lineNumber;
+	while (lineStart <= decodedText.size()) {
+		uint32 lineEnd = lineStart;
+		while (lineEnd < decodedText.size() &&
+		       decodedText[lineEnd] != '\r' &&
+		       decodedText[lineEnd] != '\n') {
+			++lineEnd;
+		}
+
+		Common::String raw = decodedText.substr(lineStart, lineEnd - lineStart);
 
 		// Remove UTF-8 BOM if it survived upstream decoding.
 		if (lineNumber == 1 && raw.size() >= 3 &&
@@ -216,44 +220,50 @@ bool SequenceTableForensicParser::parse(const Common::String &decodedText,
 
 		Common::String trimmed = raw;
 		trimmed.trim();
-		if (trimmed.empty())
-			continue;
+		if (!trimmed.empty()) {
+			Common::String comment;
+			Common::String code = stripInlineComment(raw, comment);
 
-		Common::String comment;
-		Common::String code = stripInlineComment(raw, comment);
+			Common::String bannerProbe = comment.empty() ? trimmed : comment;
+			Common::String lowerBanner = bannerProbe;
+			lowerBanner.toLowercase();
+			if (lowerBanner.contains("japotek animation control system") ||
+			    lowerBanner.contains("(jacs)")) {
+				SequenceDirective banner;
+				banner.kind = kSequenceDirectiveJacsBanner;
+				banner.lineNumber = lineNumber;
+				banner.keyword = "JACS";
+				banner.rawLine = raw;
+				out._directives.push_back(banner);
+				out._hasJacsBanner = true;
+			}
 
-		Common::String bannerProbe = comment.empty() ? trimmed : comment;
-		Common::String lowerBanner = bannerProbe;
-		lowerBanner.toLowercase();
-		if (lowerBanner.contains("japotek animation control system") ||
-		    lowerBanner.contains("(jacs)")) {
-			SequenceDirective banner;
-			banner.kind = kSequenceDirectiveJacsBanner;
-			banner.lineNumber = lineNumber;
-			banner.keyword = "JACS";
-			banner.rawLine = raw;
-			out._directives.push_back(banner);
-			out._hasJacsBanner = true;
-
-			if (code.empty())
-				continue;
+			if (!code.empty()) {
+				SequenceDirective directive;
+				directive.lineNumber = lineNumber;
+				directive.rawLine = raw;
+				if (classifyDirective(code, directive)) {
+					out._directives.push_back(directive);
+				} else {
+					SequenceOpaqueLine opaque;
+					opaque.lineNumber = lineNumber;
+					opaque.text = code;
+					out._opaqueLines.push_back(opaque);
+				}
+			}
 		}
 
-		if (code.empty())
-			continue;
+		if (lineEnd >= decodedText.size())
+			break;
 
-		SequenceDirective directive;
-		directive.lineNumber = lineNumber;
-		directive.rawLine = raw;
-		if (classifyDirective(code, directive)) {
-			out._directives.push_back(directive);
-			continue;
+		if (decodedText[lineEnd] == '\r' &&
+		    lineEnd + 1 < decodedText.size() &&
+		    decodedText[lineEnd + 1] == '\n') {
+			lineStart = lineEnd + 2;
+		} else {
+			lineStart = lineEnd + 1;
 		}
-
-		SequenceOpaqueLine opaque;
-		opaque.lineNumber = lineNumber;
-		opaque.text = code;
-		out._opaqueLines.push_back(opaque);
+		++lineNumber;
 	}
 
 	if (out._directives.empty() && out._opaqueLines.empty()) {
