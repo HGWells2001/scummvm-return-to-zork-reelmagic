@@ -5,6 +5,7 @@
 
 #include "audio/audiostream.h"
 #include "audio/decoders/mp3.h"
+#include "common/stream.h"
 
 #include "zerocomico-stage18/scummvm_speech_backend.h"
 
