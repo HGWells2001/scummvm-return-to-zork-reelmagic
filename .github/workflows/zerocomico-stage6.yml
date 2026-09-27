@@ -27,3 +27,15 @@ jobs:
               -I"$GITHUB_WORKSPACE" \
               "$src"
           done
+
+      - name: Package Stage 6 modules
+        run: |
+          set -euxo pipefail
+          zip -r ZeroComico_ScummVM_Stage6_modules.zip zerocomico-stage6
+
+      - name: Upload Stage 6 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZeroComico_ScummVM_Stage6_modules
+          path: ZeroComico_ScummVM_Stage6_modules.zip
+          if-no-files-found: error
