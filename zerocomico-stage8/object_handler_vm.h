@@ -16,6 +16,22 @@ namespace ZeroComico {
 
 class ScriptBridge;
 
+enum ObjectHandlerExternalOpcodeResult {
+	kObjectHandlerExternalUnhandled,
+	kObjectHandlerExternalDone,
+	kObjectHandlerExternalYield,
+	kObjectHandlerExternalBadArguments
+};
+
+class ObjectHandlerExternalOpcodeHost {
+public:
+	virtual ~ObjectHandlerExternalOpcodeHost() {}
+
+	virtual ObjectHandlerExternalOpcodeResult executeObjectHandlerOpcode(
+		const Common::String &opcode,
+		const Common::Array<Common::String> &args) = 0;
+};
+
 class GameplayHandlerHost {
 public:
 	virtual ~GameplayHandlerHost() {}
@@ -42,7 +58,8 @@ public:
 	void begin(const ObjectHandlerBody *body,
 	           GameplayVariables *variables,
 	           ScriptBridge *bridge,
-	           GameplayHandlerHost *host);
+	           GameplayHandlerHost *host,
+	           ObjectHandlerExternalOpcodeHost *externalOpcodeHost = nullptr);
 
 	ObjectHandlerVmResult update(uint32 instructionBudget = 128);
 
@@ -67,6 +84,7 @@ private:
 	GameplayVariables *_variables;
 	ScriptBridge *_bridge;
 	GameplayHandlerHost *_host;
+	ObjectHandlerExternalOpcodeHost *_externalOpcodeHost;
 	uint32 _pc;
 	Common::Array<ConditionalFrame> _conditions;
 	Common::String _blockedOpcode;
