@@ -15,6 +15,7 @@
 #include "zerocomico-stage9/anj_document.h"
 #include "zerocomico-stage9/anj_tracks.h"
 #include "zerocomico-stage9/p3d_model.h"
+#include "zerocomico-stage9/resource_decoder.h"
 
 namespace ZeroComico {
 
@@ -22,12 +23,17 @@ class ActorBinaryResourceHost {
 public:
 	virtual ~ActorBinaryResourceHost() {}
 
-	/**
-	 * Read a resource after opening its JFX1 wrapper and LZHUF decoding it.
-	 * The Stage 1 decoder is the intended implementation.
-	 */
 	virtual bool readDecodedBinary(const Common::Path &path,
 	                               Common::Array<byte> &decoded) = 0;
+};
+
+class ActorPackedResourceHost {
+public:
+	virtual ~ActorPackedResourceHost() {}
+
+	/** Read the exact bytes stored on disc, including the JFX1 wrapper. */
+	virtual bool readBinary(const Common::Path &path,
+	                        Common::Array<byte> &packed) = 0;
 };
 
 struct ActorModel {
@@ -46,6 +52,11 @@ public:
 	          ActorBinaryResourceHost &host,
 	          ActorModel &out,
 	          Common::String &errorMessage) const;
+
+	bool loadPacked(const SharedActorAssets &assets,
+	                ActorPackedResourceHost &host,
+	                ActorModel &out,
+	                Common::String &errorMessage) const;
 };
 
 /**
