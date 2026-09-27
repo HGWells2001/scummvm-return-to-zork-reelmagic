@@ -39,7 +39,7 @@ jobs:
       - name: Link and run Stage 10 focused self-test
         run: |
           set -euxo pipefail
-          g++ -std=c++17 -Wall -Wextra             -I"$GITHUB_WORKSPACE/_upstream_scummvm"             -I"$GITHUB_WORKSPACE"             zerocomico-stage6/mainplace.cpp             zerocomico-stage10/dialogue_document.cpp             zerocomico-stage10/dialogue_runtime.cpp             zerocomico-stage10/gameplay_dialogue_service.cpp             zerocomico-stage10/dialogue_mainplace_loader.cpp             zerocomico-stage10/stage10_selftest.cpp             _upstream_scummvm/common/libcommon.a             -pthread -ldl -lm             -o stage10_selftest
+          g++ -std=c++17 -Wall -Wextra -DHAVE_CONFIG_H             -I"$GITHUB_WORKSPACE/_upstream_scummvm"             -I"$GITHUB_WORKSPACE"             zerocomico-stage6/mainplace.cpp             zerocomico-stage10/dialogue_document.cpp             zerocomico-stage10/dialogue_runtime.cpp             zerocomico-stage10/gameplay_dialogue_service.cpp             zerocomico-stage10/dialogue_mainplace_loader.cpp             zerocomico-stage10/stage10_selftest.cpp             _upstream_scummvm/common/libcommon.a             -pthread -ldl -lm             -o stage10_selftest
           ./stage10_selftest
 
       - name: Package Stage 10 modules
