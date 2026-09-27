@@ -22,6 +22,7 @@ jobs:
           for src in zerocomico-stage6/*.cpp; do
             echo "Checking $src"
             g++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
+              -D__MINGW32__ \
               -I"$GITHUB_WORKSPACE/_upstream_scummvm" \
               -I"$GITHUB_WORKSPACE" \
               "$src"
