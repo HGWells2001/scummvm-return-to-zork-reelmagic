@@ -160,7 +160,11 @@ bool GameplayRuntime::beginWalkToObject(const Common::String &entityName,
 	if (distanceSquared(goal, _actorPosition) <= 0.0001f)
 		return true;
 
-	return beginPath(goal);
+	if (!beginPath(goal)) {
+		_walkingForInteraction = false;
+		return false;
+	}
+	return true;
 }
 
 GameplayInteractionResult GameplayRuntime::interact(
