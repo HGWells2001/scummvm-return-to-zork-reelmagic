@@ -58,8 +58,9 @@ subset found in Mp1 puzzle logic:
 - all Stage 6 opcodes already implemented by `executeStage6Opcode()`.
 
 Unknown opcodes are not silently ignored. The VM stops with
-`kObjectHandlerVmBlockedOpcode` and exposes the opcode name so the next
-reverse-engineering step is explicit.
+`kObjectHandlerVmBlockedOpcode`, keeps the program counter on that same
+instruction, and exposes the opcode name so the next reverse-engineering
+step is explicit.
 
 ## Giovanni + BSP + Object handler runtime
 
@@ -89,7 +90,7 @@ pick-buffer mesh
   -> if_e / mov / hide / dialog / waits
 ```
 
-A direct floor click is also represented by `walkToFloorPoint()`.
+A direct floor click is also represented by `walkToFloorPoint()`. Walking speed is supplied by the engine with `setWalkSpeed()`; Stage 8 deliberately ships no guessed retail speed.
 
 ## No guessed world mapping
 
