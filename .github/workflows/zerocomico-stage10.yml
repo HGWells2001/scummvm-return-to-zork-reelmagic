@@ -24,6 +24,11 @@ jobs:
             g++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only               -D__MINGW32__               -I"$GITHUB_WORKSPACE/_upstream_scummvm"               -I"$GITHUB_WORKSPACE"               "$src"
           done
 
+      - name: Install ScummVM build dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-dev
+
       - name: Build ScummVM common library
         run: |
           set -euxo pipefail
