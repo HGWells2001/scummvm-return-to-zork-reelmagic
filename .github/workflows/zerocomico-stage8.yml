@@ -1,0 +1,37 @@
+name: zerocomico-stage8-compile
+
+on:
+  push:
+    branches:
+      - scratch/zerocomico-stage8
+  workflow_dispatch:
+
+jobs:
+  syntax-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch current ScummVM headers
+        run: |
+          git clone --depth 1 https://github.com/scummvm/scummvm.git _upstream_scummvm
+
+      - name: Syntax-check Stage 6, Stage 7 and Stage 8 C++
+        run: |
+          set -euxo pipefail
+          for src in zerocomico-stage6/*.cpp zerocomico-stage7/*.cpp zerocomico-stage8/*.cpp; do
+            echo "Checking $src"
+            g++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only               -D__MINGW32__               -I"$GITHUB_WORKSPACE/_upstream_scummvm"               -I"$GITHUB_WORKSPACE"               "$src"
+          done
+
+      - name: Package Stage 8 modules
+        run: |
+          set -euxo pipefail
+          zip -r ZeroComico_ScummVM_Stage8_modules.zip             zerocomico-stage6 zerocomico-stage7 zerocomico-stage8
+
+      - name: Upload Stage 8 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZeroComico_ScummVM_Stage8_modules
+          path: ZeroComico_ScummVM_Stage8_modules.zip
+          if-no-files-found: error
