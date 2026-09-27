@@ -34,10 +34,8 @@ bool SpeechPlayer::play(const DialogueSpeechResource &resource,
 		return false;
 	}
 
-	if (!_backend.play(stream, errorMessage)) {
-		delete stream;
+	if (!_backend.play(stream, errorMessage))
 		return false;
-	}
 
 	_currentPath = resource.path;
 	return true;
