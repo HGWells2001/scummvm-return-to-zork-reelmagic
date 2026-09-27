@@ -3,6 +3,8 @@
  * Experimental Zero Comico engine work.
  */
 
+#include <cstdio>
+
 #include "zerocomico-stage7/bsp_navigation.h"
 
 #include "common/tokenizer.h"
@@ -57,19 +59,19 @@ private:
 
 static bool parseInt(const Common::String &line, int32 &value) {
 	int v = 0;
-	if (std::sscanf(line.c_str(), "%d", &v) != 1)
+	if (sscanf(line.c_str(), "%d", &v) != 1)
 		return false;
 	value = v;
 	return true;
 }
 
 static bool parseVec2(const Common::String &line, NavVec2 &value) {
-	return std::sscanf(line.c_str(), "%f %f", &value.x, &value.y) == 2;
+	return sscanf(line.c_str(), "%f %f", &value.x, &value.y) == 2;
 }
 
 static bool parseFourInts(const Common::String &line, BspEdge &edge) {
 	int a = 0, b = 0, c = 0, d = 0;
-	if (std::sscanf(line.c_str(), "%d %d %d %d", &a, &b, &c, &d) != 4)
+	if (sscanf(line.c_str(), "%d %d %d %d", &a, &b, &c, &d) != 4)
 		return false;
 	edge.point0 = a;
 	edge.point1 = b;
@@ -98,7 +100,7 @@ static bool parseTree(LineReader &reader, int32 &nodes, int32 &nulls,
 	}
 
 	int edge = -1, leaf = -1, unused = 0;
-	if (std::sscanf(line.c_str(), "%d %d %d", &edge, &leaf, &unused) != 3) {
+	if (sscanf(line.c_str(), "%d %d %d", &edge, &leaf, &unused) != 3) {
 		error = Common::String::format("Invalid BSP tree node '%s'", line.c_str());
 		return false;
 	}
@@ -275,7 +277,7 @@ bool BspNavigation::parse(const Common::String &text, Common::String &errorMessa
 				return false;
 			}
 			float weight = 0.0f;
-			if (std::sscanf(arcTokens.nextToken().c_str(), "%f", &weight) != 1) {
+			if (sscanf(arcTokens.nextToken().c_str(), "%f", &weight) != 1) {
 				errorMessage = "Invalid path graph weight";
 				return false;
 			}
