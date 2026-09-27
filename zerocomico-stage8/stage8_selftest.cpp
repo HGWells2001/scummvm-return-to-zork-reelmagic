@@ -250,6 +250,7 @@ static void testGameplayRuntime() {
 	assert(host.loaded);
 
 	runtime.setActorStartPosition(NavVec2(0.0f, 1.0f));
+	runtime.setWalkSpeed(1000.0f);
 	assert(runtime.interact("pac_pacman", kGameplayOperate) ==
 	       kGameplayInteractionWalking);
 
