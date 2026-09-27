@@ -49,7 +49,6 @@ static bool containsStringIgnoreCase(const Common::Array<Common::String> &list,
 
 static Common::String bytesToLatin1(const Common::Array<byte> &bytes) {
 	Common::String out;
-	out.reserve(bytes.size());
 	for (uint32 i = 0; i < bytes.size(); ++i)
 		out += (char)bytes[i];
 	return out;
