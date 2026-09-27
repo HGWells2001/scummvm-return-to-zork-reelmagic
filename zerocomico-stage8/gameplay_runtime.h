@@ -59,6 +59,8 @@ public:
 	 * guessed coordinate fallback.
 	 */
 	void setActorStartPosition(const NavVec2 &position);
+	void setWalkSpeed(float unitsPerSecond) { _walkSpeed = unitsPerSecond; }
+	float walkSpeed() const { return _walkSpeed; }
 
 	bool walkToFloorPoint(const NavVec2 &point);
 	GameplayInteractionResult interact(const Common::String &pickedSceneEntity,
@@ -107,6 +109,7 @@ private:
 	NavVec2 _actorPosition;
 	bool _hasActorPosition;
 	bool _walkingForInteraction;
+	float _walkSpeed;
 };
 
 } // End of namespace ZeroComico
