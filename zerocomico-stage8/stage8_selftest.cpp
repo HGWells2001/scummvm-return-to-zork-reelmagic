@@ -121,7 +121,7 @@ public:
 	bool hidden;
 };
 
-class FakeGameplayHost : public GameplayRuntimeHost {
+class FakeGameplayHost : public GameplayRuntimeHost, public GameplayHandlerHost {
 public:
 	FakeGameplayHost() :
 		loaded(false),
