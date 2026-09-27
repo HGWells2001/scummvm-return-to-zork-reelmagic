@@ -21,7 +21,7 @@ jobs:
           set -euxo pipefail
           for src in zerocomico-stage6/*.cpp zerocomico-stage7/*.cpp zerocomico-stage8/*.cpp zerocomico-stage9/*.cpp zerocomico-stage10/*.cpp zerocomico-stage11/*.cpp zerocomico-stage12/*.cpp zerocomico-stage13/*.cpp zerocomico-stage14/*.cpp zerocomico-stage15/*.cpp zerocomico-stage16/*.cpp zerocomico-stage17/*.cpp zerocomico-stage18/*.cpp; do
             echo "Checking $src"
-            g++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only               -D__MINGW32__               -I"$GITHUB_WORKSPACE/_upstream_scummvm"               -I"$GITHUB_WORKSPACE"               "$src"
+            g++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only               -D__MINGW32__               -isystem "$GITHUB_WORKSPACE/_upstream_scummvm"               -I"$GITHUB_WORKSPACE"               "$src"
           done
 
       - name: Install ScummVM build dependency
@@ -39,7 +39,7 @@ jobs:
       - name: Link and run Stage 18 focused self-test
         run: |
           set -euxo pipefail
-          g++ -std=c++17 -Wall -Wextra -DHAVE_CONFIG_H             -I"$GITHUB_WORKSPACE/_upstream_scummvm"             -I"$GITHUB_WORKSPACE"             zerocomico-stage6/mainplace.cpp             zerocomico-stage15/speech_catalog.cpp             zerocomico-stage15/dialogue_speech_resolver.cpp             zerocomico-stage18/speech_player.cpp             zerocomico-stage18/explicit_dialogue_speech.cpp             zerocomico-stage18/stage18_selftest.cpp             _upstream_scummvm/common/libcommon.a             -pthread -ldl -lm             -o stage18_selftest
+          g++ -std=c++17 -Wall -Wextra -DHAVE_CONFIG_H             -isystem "$GITHUB_WORKSPACE/_upstream_scummvm"             -I"$GITHUB_WORKSPACE"             zerocomico-stage6/mainplace.cpp             zerocomico-stage15/speech_catalog.cpp             zerocomico-stage15/dialogue_speech_resolver.cpp             zerocomico-stage18/speech_player.cpp             zerocomico-stage18/explicit_dialogue_speech.cpp             zerocomico-stage18/stage18_selftest.cpp             _upstream_scummvm/common/libcommon.a             -pthread -ldl -lm             -o stage18_selftest
           ./stage18_selftest
 
       - name: Package Stage 18 modules
