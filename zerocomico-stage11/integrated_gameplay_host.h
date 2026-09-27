@@ -53,6 +53,10 @@ public:
 	bool configureMotion(const ActorMotionClips &clips,
 	                     Common::String &errorMessage);
 
+	void setExternalOpcodeHost(ObjectHandlerExternalOpcodeHost *host) {
+		_externalOpcodeHost = host;
+	}
+
 	void update(uint32 deltaMillis);
 
 	const Common::String &lastError() const { return _lastError; }
@@ -76,6 +80,9 @@ public:
 	                 const Common::String &dialogName) override;
 	bool isDialogPlaying() const override;
 	void showExamineText(const Common::String &text) override;
+	ObjectHandlerExternalOpcodeResult executeObjectHandlerOpcode(
+		const Common::String &opcode,
+		const Common::Array<Common::String> &args) override;
 
 private:
 	void clearActor();
@@ -93,6 +100,7 @@ private:
 	GameplayDialogueService _dialogue;
 	Common::String _lastError;
 	bool _dialogueLoaded;
+	ObjectHandlerExternalOpcodeHost *_externalOpcodeHost;
 };
 
 } // End of namespace ZeroComico
