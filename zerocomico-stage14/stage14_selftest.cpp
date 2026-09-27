@@ -5,6 +5,7 @@
 #include "zerocomico-stage13/sequence_table.h"
 #include "zerocomico-stage14/animset_motion_profile.h"
 #include "zerocomico-stage14/character_animset.h"
+#include "zerocomico-stage14/motion_runtime_evidence.h"
 
 using namespace ZeroComico;
 
@@ -120,6 +121,64 @@ static void testSequenceCorrelation() {
 	assert(evidence.runSequenceMentioned);
 }
 
+static void testRuntimeEvidence() {
+	CharacterScriptDocument chars;
+	CharacterScriptParser charParser;
+	Common::String error;
+	assert(charParser.parse(kCharacterScript, chars, error));
+
+	AnimSetMotionProfile profile;
+	assert(buildAnimSetMotionProfile(
+		*chars.character("Pacman")->animSet("Walk"), profile, error));
+
+	SequenceTableDocument seq;
+	SequenceTableForensicParser seqParser;
+	assert(seqParser.parse(kSequenceSample, seq, error));
+
+	Common::Array<AnimationClip> clips;
+	AnimationClip clip;
+	clip.name = "pac_stay"; clips.push_back(clip);
+	clip.name = "pac_after_run"; clips.push_back(clip);
+	clip.name = "pac_walk_seq"; clips.push_back(clip);
+
+	AnimSetRuntimeEvidence evidence;
+	assert(resolveAnimSetRuntimeEvidence(profile, seq, clips, evidence, error));
+	assert(error.empty());
+	assert(evidence.hasDirectIdle());
+	assert(evidence.standbyClip == "pac_stay");
+	assert(evidence.standbyAfterRunClipPresent);
+	assert(evidence.walkSequenceMentioned);
+	assert(evidence.runSequenceMentioned);
+
+	// Even if a raw ANJ clip happens to have the same text as the JACS
+	// sequence identifier, Stage 14 must not silently promote it to Walk.
+	assert(!evidence.hasResolvedWalkClip());
+}
+
+static void testMissingDirectAnimationRejected() {
+	CharacterScriptDocument chars;
+	CharacterScriptParser charParser;
+	Common::String error;
+	assert(charParser.parse(kCharacterScript, chars, error));
+
+	AnimSetMotionProfile profile;
+	assert(buildAnimSetMotionProfile(
+		*chars.character("Pacman")->animSet("Walk"), profile, error));
+
+	SequenceTableDocument seq;
+	SequenceTableForensicParser seqParser;
+	assert(seqParser.parse(kSequenceSample, seq, error));
+
+	Common::Array<AnimationClip> clips;
+	AnimationClip clip;
+	clip.name = "pac_stay";
+	clips.push_back(clip);
+
+	AnimSetRuntimeEvidence evidence;
+	assert(!resolveAnimSetRuntimeEvidence(profile, seq, clips, evidence, error));
+	assert(!error.empty());
+}
+
 static void testExcessPairRejected() {
 	const char *bad =
 		"ge_Character Test {\n"
@@ -142,6 +201,8 @@ int main() {
 	testCharacterParsing();
 	testMotionProfile();
 	testSequenceCorrelation();
+	testRuntimeEvidence();
+	testMissingDirectAnimationRejected();
 	testExcessPairRejected();
 	return 0;
 }
