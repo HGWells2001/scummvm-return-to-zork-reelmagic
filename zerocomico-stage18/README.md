@@ -50,6 +50,27 @@ Audio::SoundHandle
 When ScummVM is built without `USE_MAD`, playback fails explicitly with a
 useful error and consumes the input stream. It never pretends an MP3 started.
 
+## Stage 15 dialogue integration
+
+`SpeechPlayerDialoguePlaybackHost` implements the Stage 15
+`DialogueSpeechPlaybackHost` interface.
+
+The full runtime path is therefore:
+
+```
+DialogueRuntime node
+  -> explicit DialogueSpeechIndexProvider
+  -> SpeechResourceCatalog
+  -> SpeechAwareDialoguePresentation
+  -> resolved retail path
+  -> SpeechPlayerDialoguePlaybackHost
+  -> SpeechPlayer
+  -> ScummVM mixer backend
+```
+
+The adapter receives only a path that Stage 15 already resolved from an
+explicit retail index. It performs no enumeration of its own.
+
 ## ExplicitDialogueSpeech
 
 This is the bridge from Stage 15's proven filename/index resolver to actual
@@ -78,7 +99,13 @@ The focused executable test uses a fake stream host/backend and verifies:
 - resource-open failures;
 - backend failure ownership;
 - replacement playback stops the previous sample;
-- explicit stop clears the current resource.
+- explicit stop clears the current resource;
+- Stage 10/15/18 end-to-end dialogue-to-MP3 routing;
+- speech stops when the text node finishes.
+
+The previous divergent Stage 18 branch is preserved as
+`scratch/zerocomico-stage18-legacy`; the active branch is based on the
+latest green Stage 17 line.
 
 All Stage 6–18 sources are syntax-checked with `-Werror`. The native
 ScummVM MP3 adapter is therefore checked against current mixer/decoder APIs,
