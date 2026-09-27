@@ -205,6 +205,10 @@ ObjectHandlerVmResult ObjectHandlerVM::update(uint32 instructionBudget) {
 
 		bool advance = true;
 		const ObjectHandlerVmResult result = executeLine(_body->lines[_pc], advance);
+		if (result == kObjectHandlerVmBlockedOpcode ||
+		    result == kObjectHandlerVmBadArguments)
+			advance = false;
+
 		if (advance)
 			++_pc;
 
