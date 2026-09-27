@@ -22,6 +22,7 @@ bool ScummVMSpeechBackend::play(Common::SeekableReadStream *stream,
                                 Common::String &errorMessage) {
 	errorMessage.clear();
 	if (!_mixer) {
+		delete stream;
 		errorMessage = "ScummVM speech backend has no mixer";
 		return false;
 	}
@@ -42,6 +43,7 @@ bool ScummVMSpeechBackend::play(Common::SeekableReadStream *stream,
 	_mixer->playStream(Audio::Mixer::kSpeechSoundType, &_handle, audio);
 	return true;
 #else
+	delete stream;
 	errorMessage = "ScummVM was built without MP3/MAD support";
 	return false;
 #endif
