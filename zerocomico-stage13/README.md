@@ -21,6 +21,8 @@ Strings recovered from `japotek3d.dll` prove that the engine owns a
 - `table`
 - transition classes reported as `0>1`, `1>1`, `1>0`
 
+The public reverse-engineering tool `tools/gsc.py` also explicitly includes `.seq` among the seven JFX1 text formats, so Stage 13 can use the same proven JFX1/LZHUF decoder as the other script resources.
+
 The same DLL explicitly reports missing animation references in:
 
 - a 0→1 **start** transition;
@@ -57,6 +59,20 @@ both known and opaque lines.
 Crucially, it does **not** infer that an opaque identifier is automatically
 an ANJ clip, a stop state, a blend table or a walk sequence.
 
+## Retail actor loader and ANJ correlation
+
+`ActorSequenceTableLoader` now reads the actor's actual `.seq` resource path,
+decodes its JFX1/LZHUF wrapper and feeds the decoded Latin-1 text to the
+forensic parser.
+
+`SequenceClipCorrelator` then checks every already-decoded ANJ clip name
+against exact identifier tokens in the SequenceTable. It records the source
+line, directive kind and explicit transition marker when present.
+
+This remains forensic evidence, not a semantic shortcut: substring matches are
+rejected and a referenced ANJ clip is not automatically declared to be
+"walk", "idle" or any other gameplay state.
+
 ## Why this matters
 
 Stage 11 already accepts an injected Idle/Walk -> ANJ-clip mapping.
@@ -84,7 +100,9 @@ The focused executable self-test checks:
 - inline comments;
 - quoted `//` text;
 - exact identifier matching;
-- empty input rejection.
+- empty input rejection;
+- exact SequenceTable identifier -> ANJ clip correlation;
+- rejection of substring-only false matches.
 
 CI syntax-checks Stages 6 through 13 against current ScummVM headers using
 `-Werror`, builds the real ScummVM `libcommon`, executes the Stage 13
