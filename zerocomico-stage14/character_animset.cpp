@@ -153,100 +153,124 @@ bool CharacterScriptParser::parse(const Common::String &decodedCharScript,
 		return false;
 	}
 
-	Common::StringTokenizer lines(decodedCharScript, "\r\n");
-	uint32 physicalLine = 0;
+	uint32 physicalLine = 1;
+	uint32 lineStart = 0;
 	int depth = 0;
 	int characterBaseDepth = -1;
 	int32 currentCharacter = -1;
 	int32 currentAnimSet = -1;
 
-	while (!lines.empty()) {
-		Common::String raw = lines.nextToken();
-		++physicalLine;
-		Common::String code = stripComment(raw);
-		if (code.empty())
-			continue;
-
-		Common::Array<Common::String> tokens;
-		tokenizeLine(code, tokens);
-
-		if (!tokens.empty() && tokens[0].equalsIgnoreCase("SetCharPos_Vector")) {
-			if (tokens.size() < 3) {
-				errorMessage = Common::String::format(
-					"SetCharPos_Vector on line %u is incomplete",
-					(uint)physicalLine);
-				return false;
-			}
-
-			CharacterStartVector position;
-			position.lineNumber = physicalLine;
-			position.characterName = tokens[1];
-			position.helperName = tokens[2];
-			out._startVectors.push_back(position);
+	while (lineStart <= decodedCharScript.size()) {
+		uint32 lineEnd = lineStart;
+		while (lineEnd < decodedCharScript.size() &&
+		       decodedCharScript[lineEnd] != '\r' &&
+		       decodedCharScript[lineEnd] != '\n') {
+			++lineEnd;
 		}
 
-		if (currentCharacter < 0 &&
-		    !tokens.empty() &&
-		    tokens[0].equalsIgnoreCase("ge_Character")) {
-			if (tokens.size() < 2) {
-				errorMessage = Common::String::format(
-					"ge_Character on line %u has no name",
-					(uint)physicalLine);
-				return false;
-			}
+		Common::String raw =
+			decodedCharScript.substr(lineStart, lineEnd - lineStart);
+		Common::String code = stripComment(raw);
 
-			CharacterDefinition character;
-			character.lineNumber = physicalLine;
-			character.name = tokens[1];
-			out._characters.push_back(character);
-			currentCharacter = (int32)out._characters.size() - 1;
-			currentAnimSet = -1;
-			characterBaseDepth = depth;
-		} else if (currentCharacter >= 0) {
-			CharacterDefinition &character = out._characters[currentCharacter];
+		if (!code.empty()) {
+			Common::Array<Common::String> tokens;
+			tokenizeLine(code, tokens);
 
-			if (!tokens.empty() && tokens[0].equalsIgnoreCase("AnimSet")) {
+			if (!tokens.empty() &&
+			    tokens[0].equalsIgnoreCase("SetCharPos_Vector")) {
 				if (tokens.size() < 3) {
 					errorMessage = Common::String::format(
-						"AnimSet on line %u is incomplete",
+						"SetCharPos_Vector on line %u is incomplete",
 						(uint)physicalLine);
 					return false;
 				}
 
-				CharacterAnimSet animSet;
-				animSet.lineNumber = physicalLine;
-				animSet.name = tokens[1];
-				animSet.entity = tokens[2];
-				character.animSets.push_back(animSet);
-				currentAnimSet = (int32)character.animSets.size() - 1;
-			} else if (currentAnimSet >= 0 && !tokens.empty() &&
-			           isProvenAnimSetField(tokens[0])) {
-				CharacterAnimSetField field;
-				field.lineNumber = physicalLine;
-				field.key = tokens[0];
-				field.rawLine = raw;
-				for (uint32 i = 1; i < tokens.size(); ++i)
-					field.values.push_back(tokens[i]);
-				character.animSets[currentAnimSet].fields.push_back(field);
+				CharacterStartVector position;
+				position.lineNumber = physicalLine;
+				position.characterName = tokens[1];
+				position.helperName = tokens[2];
+				out._startVectors.push_back(position);
+			}
+
+			if (currentCharacter < 0 &&
+			    !tokens.empty() &&
+			    tokens[0].equalsIgnoreCase("ge_Character")) {
+				if (tokens.size() < 2) {
+					errorMessage = Common::String::format(
+						"ge_Character on line %u has no name",
+						(uint)physicalLine);
+					return false;
+				}
+
+				CharacterDefinition character;
+				character.lineNumber = physicalLine;
+				character.name = tokens[1];
+				out._characters.push_back(character);
+				currentCharacter = (int32)out._characters.size() - 1;
+				currentAnimSet = -1;
+				characterBaseDepth = depth;
+			} else if (currentCharacter >= 0) {
+				CharacterDefinition &character =
+					out._characters[currentCharacter];
+
+				if (!tokens.empty() &&
+				    tokens[0].equalsIgnoreCase("AnimSet")) {
+					if (tokens.size() < 3) {
+						errorMessage = Common::String::format(
+							"AnimSet on line %u is incomplete",
+							(uint)physicalLine);
+						return false;
+					}
+
+					CharacterAnimSet animSet;
+					animSet.lineNumber = physicalLine;
+					animSet.name = tokens[1];
+					animSet.entity = tokens[2];
+					character.animSets.push_back(animSet);
+					currentAnimSet =
+						(int32)character.animSets.size() - 1;
+				} else if (currentAnimSet >= 0 &&
+				           !tokens.empty() &&
+				           isProvenAnimSetField(tokens[0])) {
+					CharacterAnimSetField field;
+					field.lineNumber = physicalLine;
+					field.key = tokens[0];
+					field.rawLine = raw;
+					for (uint32 i = 1; i < tokens.size(); ++i)
+						field.values.push_back(tokens[i]);
+					character.animSets[currentAnimSet].fields.push_back(field);
+				}
+			}
+
+			depth += braceDelta(code);
+			if (depth < 0) {
+				errorMessage = Common::String::format(
+					"Character script closes too many braces on line %u",
+					(uint)physicalLine);
+				return false;
+			}
+
+			if (currentCharacter >= 0 &&
+			    characterBaseDepth >= 0 &&
+			    depth <= characterBaseDepth &&
+			    code.contains("}")) {
+				currentCharacter = -1;
+				currentAnimSet = -1;
+				characterBaseDepth = -1;
 			}
 		}
 
-		depth += braceDelta(code);
-		if (depth < 0) {
-			errorMessage = Common::String::format(
-				"Character script closes too many braces on line %u",
-				(uint)physicalLine);
-			return false;
-		}
+		if (lineEnd >= decodedCharScript.size())
+			break;
 
-		if (currentCharacter >= 0 &&
-		    characterBaseDepth >= 0 &&
-		    depth <= characterBaseDepth &&
-		    code.contains("}")) {
-			currentCharacter = -1;
-			currentAnimSet = -1;
-			characterBaseDepth = -1;
+		if (decodedCharScript[lineEnd] == '\r' &&
+		    lineEnd + 1 < decodedCharScript.size() &&
+		    decodedCharScript[lineEnd + 1] == '\n') {
+			lineStart = lineEnd + 2;
+		} else {
+			lineStart = lineEnd + 1;
 		}
+		++physicalLine;
 	}
 
 	if (depth != 0) {
