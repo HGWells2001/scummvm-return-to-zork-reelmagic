@@ -46,6 +46,16 @@ public:
 
 	// Input predicates used by script conditionals.
 	bool ifObjSelected(const Common::String &objectName) const;
+
+	/**
+	 * Original Lucifer syntax is two-argument:
+	 *     ifobjselected <owner/context> <object>
+	 * The owner is retained in the API for faithful parsing even though Stage 6
+	 * selection currently resolves the selected scene object globally.
+	 */
+	bool ifObjSelected(const Common::String &ownerName,
+	                   const Common::String &objectName) const;
+
 	bool ifObjHovered(const Common::String &objectName) const;
 	void clearSelectedObject();
 
