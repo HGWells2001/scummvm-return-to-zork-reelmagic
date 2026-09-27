@@ -7,6 +7,9 @@
 #include "zerocomico-stage15/speech_catalog.h"
 #include "zerocomico-stage18/explicit_dialogue_speech.h"
 #include "zerocomico-stage18/speech_player.h"
+#include "zerocomico-stage18/speech_dialogue_playback_adapter.h"
+#include "zerocomico-stage15/speech_aware_dialogue.h"
+#include "zerocomico-stage10/gameplay_dialogue_service.h"
 
 using namespace ZeroComico;
 
@@ -71,12 +74,91 @@ public:
 	bool failPlay;
 };
 
+class FakeTextPresentation : public DialoguePresentationHost {
+public:
+	FakeTextPresentation() : speechCount(0) {}
+
+	void showSpeech(const DialogueSpeaker &speaker,
+	                const Common::String &text) override {
+		lastSpeaker = speaker.name;
+		lastText = text;
+		++speechCount;
+	}
+	void hideSpeech() override {}
+	void showChoices(const Common::Array<Common::String> &) override {}
+	void hideChoices() override {}
+
+	int speechCount;
+	Common::String lastSpeaker;
+	Common::String lastText;
+};
+
+class TestSpeechIndexProvider : public DialogueSpeechIndexProvider {
+public:
+	bool speechIndex(const Common::String &mainPlace,
+	                 const Common::String &dialogName,
+	                 uint32 nodeIndex,
+	                 const Common::String &speakerName,
+	                 const Common::String &text,
+	                 uint32 &index) const override {
+		if (mainPlace.equalsIgnoreCase("Mp1") &&
+		    dialogName.equalsIgnoreCase("TestDialog") &&
+		    nodeIndex == 0 &&
+		    speakerName.equalsIgnoreCase("Giovanni") &&
+		    text == "Voce reale") {
+			index = 5;
+			return true;
+		}
+		return false;
+	}
+};
+
 static SpeechResourceCatalog makeCatalog() {
 	SpeechResourceCatalog catalog;
 	assert(catalog.add(Common::Path("Speech/MP1/giovanni0000.mp3")));
 	assert(catalog.add(Common::Path("Speech/MP1/giovanni0005.mp3")));
 	assert(catalog.add(Common::Path("Speech/MP1/Operaio0002.mp3")));
 	return catalog;
+}
+
+static void testEndToEndDialoguePlayback() {
+	SpeechResourceCatalog catalog = makeCatalog();
+	FakeStreamHost streams;
+	FakePlaybackBackend backend;
+	SpeechPlayer player(streams, backend);
+	SpeechPlayerDialoguePlaybackHost audio(player);
+
+	TestSpeechIndexProvider indices;
+	FakeTextPresentation text;
+	GameplayDialogueService service;
+	SpeechAwareDialoguePresentation presentation(
+		"Mp1", "Giovanni", catalog, indices, audio, text);
+	presentation.bindService(&service);
+
+	const char *dialogScript =
+		"speaker Giovanni G 255 255 0 0.07\n"
+		"Dialog TestDialog\n"
+		"{\n"
+		"G \"Voce reale\"\n"
+		"}\n";
+
+	Common::String error;
+	assert(service.load(dialogScript, &presentation, error));
+	assert(service.startDialog("Giovanni", "TestDialog"));
+	assert(text.speechCount == 1);
+	assert(text.lastSpeaker == "Giovanni");
+	assert(text.lastText == "Voce reale");
+	assert(streams.opens == 1);
+	assert(streams.lastPath.toString() ==
+	       "Speech/MP1/giovanni0005.mp3");
+	assert(backend.playCalls == 1);
+	assert(backend.active);
+	assert(audio.lastError().empty());
+
+	assert(service.advanceSpeech());
+	assert(!service.isDialogPlaying());
+	assert(!backend.active);
+	assert(backend.stopCalls == 1);
 }
 
 static void testResolvedPlayback() {
@@ -170,6 +252,7 @@ static void testReplacingSpeechStopsPreviousHandle() {
 }
 
 int main() {
+	testEndToEndDialoguePlayback();
 	testResolvedPlayback();
 	testMissingIndexNeverOpensStream();
 	testOpenFailure();
