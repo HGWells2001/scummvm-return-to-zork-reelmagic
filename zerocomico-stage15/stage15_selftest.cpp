@@ -4,6 +4,7 @@
 
 #include "zerocomico-stage15/dialogue_speech_resolver.h"
 #include "zerocomico-stage15/speech_catalog.h"
+#include "zerocomico-stage15/speech_aware_dialogue.h"
 
 using namespace ZeroComico;
 
@@ -81,6 +82,110 @@ static void testRetailMp1Catalog() {
 	assert(catalog.entries().size() == 10);
 }
 
+class FakeTextPresentation : public DialoguePresentationHost {
+public:
+	FakeTextPresentation() : speechCount(0), choiceCount(0) {}
+
+	void showSpeech(const DialogueSpeaker &speaker,
+	                const Common::String &text) override {
+		lastSpeaker = speaker.name;
+		lastText = text;
+		++speechCount;
+	}
+	void hideSpeech() override {}
+	void showChoices(const Common::Array<Common::String> &) override {
+		++choiceCount;
+	}
+	void hideChoices() override {}
+
+	int speechCount;
+	int choiceCount;
+	Common::String lastSpeaker;
+	Common::String lastText;
+};
+
+class ExplicitTestIndexProvider : public DialogueSpeechIndexProvider {
+public:
+	bool speechIndex(const Common::String &mainPlace,
+	                 const Common::String &dialogName,
+	                 uint32 nodeIndex,
+	                 const Common::String &speakerName,
+	                 const Common::String &text,
+	                 uint32 &index) const override {
+		if (mainPlace.equalsIgnoreCase("Mp1") &&
+		    dialogName.equalsIgnoreCase("Pacman_conpoz") &&
+		    nodeIndex == 0 &&
+		    speakerName.equalsIgnoreCase("Giovanni") &&
+		    text == "Prima battuta") {
+			index = 2;
+			return true;
+		}
+		return false;
+	}
+};
+
+class FakeSpeechAudio : public DialogueSpeechPlaybackHost {
+public:
+	FakeSpeechAudio() : playCount(0), stopCount(0) {}
+
+	bool playSpeech(const Common::Path &path) override {
+		lastPath = path;
+		++playCount;
+		return true;
+	}
+	void stopSpeech() override {
+		++stopCount;
+	}
+
+	int playCount;
+	int stopCount;
+	Common::Path lastPath;
+};
+
+static void testSpeechAwareDialogue() {
+	SpeechResourceCatalog catalog;
+	assert(catalog.add(Common::Path("Speech/MP1/giovanni0002.mp3")));
+
+	ExplicitTestIndexProvider indices;
+	FakeSpeechAudio audio;
+	FakeTextPresentation text;
+	GameplayDialogueService service;
+
+	SpeechAwareDialoguePresentation presentation(
+		"Mp1", "Giovanni", catalog, indices, audio, text);
+	presentation.bindService(&service);
+
+	const char *script =
+		"speaker Giovanni G 255 255 0 0.07\n"
+		"speaker Pacman P 95 250 210 0.07\n"
+		"Dialog Pacman_conpoz\n"
+		"{\n"
+		"G \"Prima battuta\"\n"
+		"P \"Seconda battuta senza voce\"\n"
+		"}\n";
+
+	Common::String error;
+	assert(service.load(script, &presentation, error));
+	assert(service.startDialog("giovanni", "Pacman_conpoz"));
+
+	assert(text.speechCount == 1);
+	assert(text.lastSpeaker == "Giovanni");
+	assert(audio.playCount == 1);
+	assert(presentation.speechAudioPlaying());
+	assert(presentation.lastSpeechPath().toString() ==
+	       "Speech/MP1/giovanni0002.mp3");
+
+	assert(service.advanceSpeech());
+	assert(text.speechCount == 2);
+	assert(text.lastSpeaker == "Pacman");
+	assert(audio.playCount == 1);
+	assert(!presentation.speechAudioPlaying());
+	assert(presentation.lastSpeechPath().empty());
+
+	assert(service.advanceSpeech());
+	assert(!service.isDialogPlaying());
+}
+
 static void testExplicitDialogueResolution() {
 	SpeechResourceCatalog catalog;
 	addMp1RetailSpeech(catalog);
@@ -110,5 +215,6 @@ int main() {
 	testPathBuilder();
 	testRetailMp1Catalog();
 	testExplicitDialogueResolution();
+	testSpeechAwareDialogue();
 	return 0;
 }
