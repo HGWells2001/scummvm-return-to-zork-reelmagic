@@ -22,8 +22,8 @@ public:
 	virtual ~SpeechStreamHost() {}
 
 	/**
-	 * Return a newly allocated stream. Ownership is transferred to the
-	 * playback backend when play() succeeds; otherwise the caller disposes it.
+	 * Return a newly allocated stream. SpeechPlayer transfers ownership to the
+	 * playback backend as soon as play() is called.
 	 */
 	virtual Common::SeekableReadStream *openSpeechStream(
 		const Common::Path &path) = 0;
@@ -33,6 +33,9 @@ class SpeechPlaybackBackend {
 public:
 	virtual ~SpeechPlaybackBackend() {}
 
+	/**
+	 * Takes ownership of stream regardless of success or failure.
+	 */
 	virtual bool play(Common::SeekableReadStream *stream,
 	                  Common::String &errorMessage) = 0;
 	virtual void stop() = 0;
