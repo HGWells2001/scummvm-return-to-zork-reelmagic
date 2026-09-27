@@ -7,9 +7,12 @@
 
 #include "zerocomico-stage6/animation_player.h"
 #include "zerocomico-stage6/mainplace.h"
+#include "zerocomico-stage6/mainplace_transition.h"
 #include "zerocomico-stage6/menu_input.h"
 #include "zerocomico-stage6/scene_picker.h"
 #include "zerocomico-stage6/scene_runtime.h"
+#include "zerocomico-stage6/script_bridge.h"
+#include "zerocomico-stage6/script_opcodes.h"
 #include "zerocomico-stage6/timeline_eval.h"
 
 #include <cassert>
@@ -25,11 +28,9 @@ static void testPicker() {
 	assert(picker.writePixel(1, 1, 10.0f, 3));
 	assert(picker.pick(1, 1) == 3);
 
-	// Farther fragment must not replace the visible id.
 	assert(!picker.writePixel(1, 1, 20.0f, 4));
 	assert(picker.pick(1, 1) == 3);
 
-	// Nearer fragment wins both depth and object id.
 	assert(picker.writePixel(1, 1, 5.0f, 4));
 	assert(picker.pick(1, 1) == 4);
 }
@@ -112,7 +113,88 @@ static void testSceneRuntime() {
 
 	runtime.requestMainPlace("mp1");
 	assert(runtime.hasPendingMainPlace());
-	assert(runtime.consumePendingMainPlace() == "Mp1");
+	assert(runtime.pendingMainPlace() == "Mp1");
+	runtime.clearPendingMainPlace();
+	assert(!runtime.hasPendingMainPlace());
+}
+
+static void testCutOpcodes() {
+	SceneRuntime runtime;
+
+	Common::Array<AnimationClip> clips;
+	AnimationClip click;
+	click.name = "CLICK";
+	click.framesPerSecond = 10.0f;
+	click.firstFrame = 0;
+	click.lastFrame = 1;
+	clips.push_back(click);
+	runtime.setAnimationClips(&clips);
+
+	ScriptBridge bridge;
+	bridge.setRuntimeHost(&runtime);
+
+	Common::Array<Common::String> args;
+	args.push_back("CLICK");
+
+	assert(executeStage6Opcode("play_cut", args, bridge) == kStage6OpcodeDone);
+	assert(runtime.isAnimationPlaying("CLICK"));
+	assert(executeStage6Opcode("wait_cut", args, bridge) == kStage6OpcodeYield);
+
+	runtime.update(250);
+	assert(!runtime.isAnimationPlaying("CLICK"));
+	assert(executeStage6Opcode("wait_cut", args, bridge) == kStage6OpcodeDone);
+}
+
+class FakeMainPlaceHost : public MainPlaceTransitionHost {
+public:
+	FakeMainPlaceHost() : activated(false) {}
+
+	bool readDecodedText(const Common::Path &path, Common::String &text) override {
+		lastPath = path;
+		text =
+			"ge_MainPlace Mp1\n"
+			"{\n"
+			"StartPlace: Room1_1\n"
+			"Room Room1_1 { }\n"
+			"Room Room1_2 { }\n"
+			"}\n";
+		return true;
+	}
+
+	bool activateMainPlace(const Common::String &directoryName,
+	                       const MainPlaceDescriptor &descriptor,
+	                       Common::String &errorMessage) override {
+		(void)errorMessage;
+		activated = true;
+		activeDirectory = directoryName;
+		activeDescriptor = descriptor;
+		return true;
+	}
+
+	Common::Path lastPath;
+	bool activated;
+	Common::String activeDirectory;
+	MainPlaceDescriptor activeDescriptor;
+};
+
+static void testChangeMainPlaceOpcode() {
+	SceneRuntime runtime;
+	ScriptBridge bridge;
+	bridge.setRuntimeHost(&runtime);
+
+	Common::Array<Common::String> args;
+	args.push_back("Mp1");
+
+	assert(executeStage6Opcode("ChangeMainplace", args, bridge) == kStage6OpcodeDone);
+	assert(runtime.pendingMainPlace() == "Mp1");
+
+	FakeMainPlaceHost host;
+	MainPlaceTransitionController transition;
+	assert(transition.process(runtime, host) == kMainPlaceTransitionDone);
+	assert(host.activated);
+	assert(host.activeDirectory == "Mp1");
+	assert(host.activeDescriptor.name == "Mp1");
+	assert(host.activeDescriptor.startPlace == "Room1_1");
 	assert(!runtime.hasPendingMainPlace());
 }
 
@@ -122,5 +204,7 @@ int main() {
 	testTcb();
 	testMainPlace();
 	testSceneRuntime();
+	testCutOpcodes();
+	testChangeMainPlaceOpcode();
 	return 0;
 }
