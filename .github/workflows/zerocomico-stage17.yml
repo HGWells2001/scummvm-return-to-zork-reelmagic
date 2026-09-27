@@ -39,7 +39,7 @@ jobs:
       - name: Link and run Stage 17 focused self-test
         run: |
           set -euxo pipefail
-          g++ -std=c++17 -Wall -Wextra -DHAVE_CONFIG_H             -I"$GITHUB_WORKSPACE/_upstream_scummvm"             -I"$GITHUB_WORKSPACE"             zerocomico-stage6/script_bridge.cpp             zerocomico-stage6/script_opcodes.cpp             zerocomico-stage8/gameplay_variables.cpp             zerocomico-stage8/object_handler_vm.cpp             zerocomico-stage16/shape_document.cpp             zerocomico-stage17/world_opcode_service.cpp             zerocomico-stage17/stage17_selftest.cpp             _upstream_scummvm/common/libcommon.a             -pthread -ldl -lm             -o stage17_selftest
+          g++ -std=c++17 -Wall -Wextra -DHAVE_CONFIG_H             -I"$GITHUB_WORKSPACE/_upstream_scummvm"             -I"$GITHUB_WORKSPACE"             zerocomico-stage6/menu_input.cpp             zerocomico-stage6/script_bridge.cpp             zerocomico-stage6/script_opcodes.cpp             zerocomico-stage8/gameplay_variables.cpp             zerocomico-stage8/object_handler_vm.cpp             zerocomico-stage16/shape_document.cpp             zerocomico-stage17/world_opcode_service.cpp             zerocomico-stage17/stage17_selftest.cpp             _upstream_scummvm/common/libcommon.a             -pthread -ldl -lm             -o stage17_selftest
           ./stage17_selftest
 
       - name: Package Stage 17 modules
