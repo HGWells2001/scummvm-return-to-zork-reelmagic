@@ -83,6 +83,22 @@ necessarily a raw ANJ clip.
 as different concepts instead of feeding `walk:` straight into the Stage 11
 ANJ player.
 
+## Runtime evidence layer
+
+`AnimSetRuntimeEvidence` now validates the two different classes of
+locomotion reference separately:
+
+- `standby:` values must resolve directly to decoded ANJ clips;
+- `walk:` / run values must occur as exact identifiers in the JACS
+  SequenceTable.
+
+A walk/run sequence is deliberately **not** converted to a raw ANJ clip yet.
+Even a coincidental equal-name ANJ clip is insufficient evidence because the
+retail executable calls these values `animseq`, not `anim`.
+
+This means Stage 11 can already trust direct idle animation evidence, while
+walking remains gated on actual SequenceTable transition decoding.
+
 ## Stage 13 correlation
 
 `correlateMotionSequences()` checks whether the walk/run sequence identifiers
@@ -103,9 +119,9 @@ ge_Character
   -> Stage 11 ActorMotionController
 ```
 
-For idle animation, `standby:` may already point directly at an animation;
-walking remains intentionally unresolved until the JACS sequence semantics are
-proven.
+For idle animation, `standby:` is validated against the decoded ANJ clip
+catalog. Walking remains intentionally unresolved until the JACS sequence
+semantics are proven.
 
 ## Validation
 
@@ -117,7 +133,15 @@ The focused test covers:
 - `SetCharPos_Vector Pacman r12_Start_Pacman`;
 - standby/blend/turn/walk pair extraction;
 - correlation of walk/run sequence identifiers with Stage 13;
-- rejection of an unproven third value in a two-value locomotion field.
+- rejection of an unproven third value in a two-value locomotion field;
+- direct standby-to-ANJ validation;
+- exact walk/run SequenceTable evidence;
+- proof that an equal-name ANJ clip is still not auto-promoted to a JACS walk
+  sequence.
+
+The previous divergent Stage 14 branch was preserved as
+`scratch/zerocomico-stage14-legacy`; the active Stage 14 is rebased on the
+latest green Stage 13 line.
 
 CI syntax-checks Stages 6 through 14 with `-Werror`, builds the real ScummVM
 `libcommon`, runs the Stage 14 parser/profile test and packages all current
