@@ -16,7 +16,8 @@ IntegratedGameplayHost::IntegratedGameplayHost(
 	_sceneRegistry(sceneRegistry),
 	_scene(scene),
 	_dialoguePresentation(dialoguePresentation),
-	_dialogueLoaded(false) {
+	_dialogueLoaded(false),
+	_externalOpcodeHost(nullptr) {
 }
 
 void IntegratedGameplayHost::clearActor() {
@@ -112,6 +113,14 @@ bool IntegratedGameplayHost::isDialogPlaying() const {
 
 void IntegratedGameplayHost::showExamineText(const Common::String &text) {
 	_scene.showExamineText(text);
+}
+
+ObjectHandlerExternalOpcodeResult IntegratedGameplayHost::executeObjectHandlerOpcode(
+		const Common::String &opcode,
+		const Common::Array<Common::String> &args) {
+	if (!_externalOpcodeHost)
+		return kObjectHandlerExternalUnhandled;
+	return _externalOpcodeHost->executeObjectHandlerOpcode(opcode, args);
 }
 
 } // End of namespace ZeroComico
