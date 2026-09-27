@@ -39,7 +39,7 @@ jobs:
       - name: Link and run Stage 14 focused self-test
         run: |
           set -euxo pipefail
-          g++ -std=c++17 -Wall -Wextra -DHAVE_CONFIG_H             -I"$GITHUB_WORKSPACE/_upstream_scummvm"             -I"$GITHUB_WORKSPACE"             zerocomico-stage13/sequence_table.cpp             zerocomico-stage14/character_animset.cpp             zerocomico-stage14/animset_motion_profile.cpp             zerocomico-stage14/stage14_selftest.cpp             _upstream_scummvm/common/libcommon.a             -pthread -ldl -lm             -o stage14_selftest
+          g++ -std=c++17 -Wall -Wextra -DHAVE_CONFIG_H             -I"$GITHUB_WORKSPACE/_upstream_scummvm"             -I"$GITHUB_WORKSPACE"             zerocomico-stage13/sequence_table.cpp             zerocomico-stage14/character_animset.cpp             zerocomico-stage14/animset_motion_profile.cpp             zerocomico-stage14/motion_runtime_evidence.cpp             zerocomico-stage14/stage14_selftest.cpp             _upstream_scummvm/common/libcommon.a             -pthread -ldl -lm             -o stage14_selftest
           ./stage14_selftest
 
       - name: Package Stage 14 modules
