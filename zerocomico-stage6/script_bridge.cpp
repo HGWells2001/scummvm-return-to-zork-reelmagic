@@ -18,6 +18,16 @@ bool ScriptBridge::ifObjSelected(const Common::String &objectName) const {
 	return _input && _input->isActivated(objectName);
 }
 
+bool ScriptBridge::ifObjSelected(const Common::String &ownerName,
+                                 const Common::String &objectName) const {
+	// The owner/context is meaningful to the original script language
+	// (for example: "ifobjselected Barbara obj_inv_spada").  Stage 6 keeps it
+	// in the API so the parser can be faithful, while the current picker
+	// resolves the selected scene object globally.
+	(void)ownerName;
+	return ifObjSelected(objectName);
+}
+
 bool ScriptBridge::ifObjHovered(const Common::String &objectName) const {
 	return _input && _input->isHovered(objectName);
 }
