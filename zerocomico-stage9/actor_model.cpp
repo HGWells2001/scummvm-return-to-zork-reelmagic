@@ -7,6 +7,37 @@
 
 namespace ZeroComico {
 
+
+namespace {
+
+class DecodedActorHost : public ActorBinaryResourceHost {
+public:
+	DecodedActorHost(ActorPackedResourceHost &packedHost,
+	                 const ResourceDecoder &decoder,
+	                 Common::String &error) :
+		_packedHost(packedHost), _decoder(decoder), _error(error) {
+	}
+
+	bool readDecodedBinary(const Common::Path &path,
+	                       Common::Array<byte> &decoded) override {
+		Common::Array<byte> packed;
+		if (!_packedHost.readBinary(path, packed)) {
+			_error = Common::String::format("Unable to read %s",
+				path.toString().c_str());
+			return false;
+		}
+		return _decoder.decodeJFX1(packed, decoded, _error);
+	}
+
+private:
+	ActorPackedResourceHost &_packedHost;
+	const ResourceDecoder &_decoder;
+	Common::String &_error;
+};
+
+} // namespace
+
+
 void ActorModel::clear() {
 	assets = SharedActorAssets();
 	model.clear();
@@ -66,6 +97,15 @@ bool ActorModelLoader::load(const SharedActorAssets &assets,
 
 	out = prepared;
 	return true;
+}
+
+bool ActorModelLoader::loadPacked(const SharedActorAssets &assets,
+                                  ActorPackedResourceHost &host,
+                                  ActorModel &out,
+                                  Common::String &errorMessage) const {
+	ResourceDecoder decoder;
+	DecodedActorHost decoded(host, decoder, errorMessage);
+	return load(assets, decoded, out, errorMessage);
 }
 
 void registerActorSceneObjects(const ActorModel &actor, SceneRegistry &registry) {
