@@ -24,10 +24,17 @@ jobs:
             g++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only               -D__MINGW32__               -I"$GITHUB_WORKSPACE/_upstream_scummvm"               -I"$GITHUB_WORKSPACE"               "$src"
           done
 
+      - name: Build ScummVM common library
+        run: |
+          set -euxo pipefail
+          cd _upstream_scummvm
+          ./configure --disable-all-engines --disable-detection-full --disable-translation --disable-debug --disable-werror
+          make -j2 common/libcommon.a
+
       - name: Link and run Stage 10 focused self-test
         run: |
           set -euxo pipefail
-          g++ -std=c++17 -Wall -Wextra             -D__MINGW32__             -I"$GITHUB_WORKSPACE/_upstream_scummvm"             -I"$GITHUB_WORKSPACE"             zerocomico-stage6/mainplace.cpp             zerocomico-stage10/dialogue_document.cpp             zerocomico-stage10/dialogue_runtime.cpp             zerocomico-stage10/gameplay_dialogue_service.cpp             zerocomico-stage10/dialogue_mainplace_loader.cpp             zerocomico-stage10/stage10_selftest.cpp             _upstream_scummvm/common/str.cpp             _upstream_scummvm/common/tokenizer.cpp             _upstream_scummvm/common/path.cpp             -o stage10_selftest
+          g++ -std=c++17 -Wall -Wextra             -I"$GITHUB_WORKSPACE/_upstream_scummvm"             -I"$GITHUB_WORKSPACE"             zerocomico-stage6/mainplace.cpp             zerocomico-stage10/dialogue_document.cpp             zerocomico-stage10/dialogue_runtime.cpp             zerocomico-stage10/gameplay_dialogue_service.cpp             zerocomico-stage10/dialogue_mainplace_loader.cpp             zerocomico-stage10/stage10_selftest.cpp             _upstream_scummvm/common/libcommon.a             -pthread -ldl -lm             -o stage10_selftest
           ./stage10_selftest
 
       - name: Package Stage 10 modules
