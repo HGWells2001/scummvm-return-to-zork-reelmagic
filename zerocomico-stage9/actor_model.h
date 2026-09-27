@@ -13,6 +13,7 @@
 #include "zerocomico-stage6/scene_runtime.h"
 #include "zerocomico-stage8/shared_actor.h"
 #include "zerocomico-stage9/anj_document.h"
+#include "zerocomico-stage9/anj_tracks.h"
 #include "zerocomico-stage9/p3d_model.h"
 
 namespace ZeroComico {
@@ -33,6 +34,8 @@ struct ActorModel {
 	SharedActorAssets assets;
 	P3DModel model;
 	ANJDocument animationDocument;
+	Common::Array<AnimationClip> animationClips;
+	ANJDecodeStats animationStats;
 
 	void clear();
 };
